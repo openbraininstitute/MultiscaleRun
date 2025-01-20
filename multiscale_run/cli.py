@@ -31,7 +31,7 @@ from .config import (
 )
 from .simulation import MsrSimulation
 from .templates import (
-    BB5_JULIA_ENV,
+    JULIA_ENV,
     MSR_CONFIG_JSON,
     MSR_POSTPROC,
     SBATCH_TEMPLATE,
@@ -59,10 +59,11 @@ def julia_env(func):
 
     @functools.wraps(func)
     def wrap(**kwargs):
-        julia_depot = Path(".julia")
-        julia_project = Path(".julia_environment")
-        os.environ.setdefault("JULIA_DEPOT_PATH", str(julia_depot.resolve()))
-        os.environ.setdefault("JULIA_PROJECT", str(julia_project.resolve()))
+        # julia_depot = Path(".julia")
+        # julia_project = Path(".julia_environment")
+        # os.environ.setdefault("JULIA_DEPOT_PATH", str(julia_depot.resolve()))
+        # os.environ.setdefault("JULIAUP_DEPOT_PATH", str(julia_depot.resolve()))
+        # os.environ.setdefault("JULIA_PROJECT", str(julia_project.resolve()))
         return func(**kwargs)
 
     return wrap
@@ -159,19 +160,20 @@ def init(
     if julia == "no":
         rd["with_metabolism"] = False
     else:
-        if julia == "shared" and not BB5_JULIA_ENV.exists():
-            LOGGER.warning("Cannot find shared Julia environment at %s", BB5_JULIA_ENV)
-            LOGGER.warning("Creating a new one")
-            julia = "create"
+        # if julia == "shared" and not JULIA_ENV.exists():
+        #     LOGGER.warning("Cannot find shared Julia environment at %s", JULIA_ENV)
+        #     LOGGER.warning("Creating a new one")
+        #     julia = "create"
         if julia == "shared":
-            LOGGER.warning("Reusing shared Julia environment at %s", BB5_JULIA_ENV)
-            for dir in [".julia", ".julia_environment"]:
-                dir = Path(dir)
-                if dir.is_symlink():
-                    dir.unlink()
-                elif dir.is_dir():
-                    shutil.rmtree(dir)
-                os.symlink(BB5_JULIA_ENV / dir.name[1:], dir)
+            LOGGER.warning("todo fix ")
+            # LOGGER.warning("Reusing shared Julia environment at %s", JULIA_ENV)
+            # for dir in [".julia", ".julia_environment"]:
+            #     dir = Path(dir)
+            #     if dir.is_symlink():
+            #         dir.unlink()
+            #     elif dir.is_dir():
+            #         shutil.rmtree(dir)
+            #     os.symlink(JULIA_ENV / dir.name[1:], dir)
         elif julia == "create":
             Path(".julia").mkdir(exist_ok=True)
             Path(".julia_environment").mkdir(exist_ok=True)
@@ -196,6 +198,7 @@ def init(
             LOGGER.warning("Checking installation of differential equations solver...")
             # noinspection PyUnresolvedReferences
             from diffeqpy import de  # noqa : F401
+            LOGGER.warning("Done!")
 
         if check:
             check_julia_env()
@@ -336,7 +339,7 @@ def virtualenv(venv=".venv", spec="py-multiscale-run@develop", **kwargs):
 
     # ensure spack is loaded
     if "SPACK_ROOT" not in os.environ:
-        if BB5_JULIA_ENV.exists():
+        if JULIA_ENV.exists():
             logging.warning(
                 textwrap.dedent(
                     """\
@@ -538,7 +541,7 @@ def edit_mod_files(**kwargs):
         == 0
     )
     build_cmd = f"build_neurodamus.sh '{ndam_mod}' --only-neuron"
-    if BB5_JULIA_ENV.exists() and intel_compiler:
+    if JULIA_ENV.exists() and intel_compiler:
         build_cmd = "module load unstable intel-oneapi-compilers ; " + build_cmd
     subprocess.check_call(build_cmd, shell=True)
     nrn_mechanims = (Path(platform.machine()) / "libnrnmech.so").resolve()

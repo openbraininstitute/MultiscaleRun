@@ -17,6 +17,4 @@ _jinja_env = Environment(loader=FileSystemLoader(TEMPLATES_DIR))
 
 SBATCH_TEMPLATE = _jinja_env.get_template("simulation.sbatch.jinja")
 
-BB5_JULIA_ENV = Path(
-    "/gpfs/bbp.cscs.ch/project/proj12/jenkins/subcellular/multiscale_run/julia-environment/latest"
-)
+JULIA_ENV = Path("~/OBI/juliaenv").expanduser()
