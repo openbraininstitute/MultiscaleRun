@@ -5,17 +5,18 @@ fatal_error() {
   exit 1
 }
 
-set_test_environment() {
-  if [ -d /gpfs/bbp.cscs.ch ] ;then
-    module load unstable intel-oneapi-mkl py-pytest
-    export JULIA_DEPOT_PATH=/gpfs/bbp.cscs.ch/project/proj12/jenkins/subcellular/multiscale_run/julia-environment/latest/julia
-    export JULIA_PROJECT=/gpfs/bbp.cscs.ch/project/proj12/jenkins/subcellular/multiscale_run/julia-environment/latest/julia_environment
-    if ! [ -e "$JULIA_DEPOT_PATH" ] ; then
-      fatal_error "Julia depot does not exist: '$JULIA_DEPOT_PATH'"
-    fi
-  fi
-  MPIRUN=${MPIRUN:-"srun --overlap"}
-}
+#  TODO fix me
+# set_test_environment() {
+#   if [ -d /gpfs/bbp.cscs.ch ] ;then
+#     module load unstable intel-oneapi-mkl py-pytest
+#     export JULIA_DEPOT_PATH=/gpfs/bbp.cscs.ch/project/proj12/jenkins/subcellular/multiscale_run/julia-environment/latest/julia
+#     export JULIA_PROJECT=/gpfs/bbp.cscs.ch/project/proj12/jenkins/subcellular/multiscale_run/julia-environment/latest/julia_environment
+#     if ! [ -e "$JULIA_DEPOT_PATH" ] ; then
+#       fatal_error "Julia depot does not exist: '$JULIA_DEPOT_PATH'"
+#     fi
+#   fi
+#   MPIRUN=${MPIRUN:-"srun --overlap"}
+# }
 
 download_tiny_CI_neurodamus_data() {
     local url="https://github.com/BlueBrain/MultiscaleRun/releases/download/0.8.2/tiny_CI_neurodamus_release-v0.8.2.tar.gz"

@@ -11,7 +11,7 @@ import pytest
 
 from multiscale_run import utils
 from multiscale_run.cli import argument_parser, main
-from multiscale_run.templates import BB5_JULIA_ENV
+from multiscale_run.templates import JULIA_ENV
 
 
 def test_init_without_metabolism(tmp_path):
@@ -32,7 +32,6 @@ def test_init_without_metabolism(tmp_path):
         raise KeyError(str(e) + "\nJSON config is missing a mandatory key")
 
 
-@pytest.mark.skipif(not BB5_JULIA_ENV.exists(), reason="BB5 resources required")
 def test_init_twice(tmp_path):
     sim_path = tmp_path / "sim"
 
@@ -179,7 +178,7 @@ def test_edit_mod_files(tmp_path):
         == 0
     )
     build_cmd = "build_neurodamus.sh mod --only-neuron"
-    if BB5_JULIA_ENV.exists and intel_compiler:
+    if JULIA_ENV.exists and intel_compiler:
         build_cmd = "module load unstable intel-oneapi-compilers ; " + build_cmd
     subprocess.check_call(build_cmd, shell=True, cwd=path)
 

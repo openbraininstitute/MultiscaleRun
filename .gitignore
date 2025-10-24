@@ -3,6 +3,7 @@ core.*
 *.logs
 .ipynb_checkpoints/
 spackenv/
+spack-build*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
