@@ -17,4 +17,4 @@ _jinja_env = Environment(loader=FileSystemLoader(TEMPLATES_DIR))
 
 SBATCH_TEMPLATE = _jinja_env.get_template("simulation.sbatch.jinja")
 
-JULIA_ENV = Path("~/OBI/juliaenv").expanduser()
+JULIA_ENV = Path("~").expanduser()

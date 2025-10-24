@@ -32,7 +32,6 @@ def test_init_without_metabolism(tmp_path):
         raise KeyError(str(e) + "\nJSON config is missing a mandatory key")
 
 
-@pytest.mark.skipif(not JULIA_ENV.exists(), reason="BB5 resources required")
 def test_init_twice(tmp_path):
     sim_path = tmp_path / "sim"
 
