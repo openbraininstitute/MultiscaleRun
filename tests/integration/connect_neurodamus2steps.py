@@ -3,14 +3,9 @@
 import numpy as np
 from neuron import h
 
-from multiscale_run import (
-    MsrConfig,
-    MsrConnectionManager,
-    MsrNeurodamusManager,
-    MsrPreprocessor,
-    MsrStepsManager,
-    utils,
-)
+from multiscale_run import (MsrConfig, MsrConnectionManager,
+                            MsrNeurodamusManager, MsrPreprocessor,
+                            MsrStepsManager, utils)
 
 
 def check_ratio_mat(m):

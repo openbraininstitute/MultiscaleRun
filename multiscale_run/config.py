@@ -9,7 +9,8 @@ import jsonschema
 import numpy as np
 
 from . import utils
-from .templates import MSR_CONFIG_JSON, MSR_PKG_DIR, MSR_SCHEMA_JSON, TEMPLATES_DIR
+from .templates import (MSR_CONFIG_JSON, MSR_PKG_DIR, MSR_SCHEMA_JSON,
+                        TEMPLATES_DIR)
 
 
 class NamedCircuit(

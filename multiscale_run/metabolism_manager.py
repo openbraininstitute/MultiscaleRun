@@ -212,10 +212,8 @@ class MsrMetabolismManager:
             the calculated glycogen value, and mito_volume_fraction is
             the calculated mitochondrial volume fraction.
         """
-        # idx: layers are 1-based while python vectors are 0-based
-        # c_gid: ndam is 1-based while libsonata and bluepysnap are 0-based
-
-        idx = int(self.neuron_node_pop.get_attribute("layer", raw_gid - 1)) - 1
+        # layer_idx: layers are 1-based while python vectors are 0-based
+        layer_idx = int(self.neuron_node_pop.get_attribute("layer", raw_gid)) - 1
         glycogen_au = np.array(
             self.config.multiscale_run.metabolism.constants.glycogen_au
         )
@@ -227,8 +225,8 @@ class MsrMetabolismManager:
             1.0 / max(mito_volume_fraction)
         )
         return (
-            glycogen_scaled[idx],
-            mito_volume_fraction_scaled[idx],
+            glycogen_scaled[layer_idx],
+            mito_volume_fraction_scaled[layer_idx],
         )
 
     @utils.logs_decorator

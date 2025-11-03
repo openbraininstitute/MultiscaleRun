@@ -3,12 +3,7 @@ from pathlib import Path
 import numpy as np
 from neuron import h
 
-from multiscale_run import (
-    MsrConfig,
-    MsrPreprocessor,
-    MsrStepsManager,
-    utils,
-)
+from multiscale_run import MsrConfig, MsrPreprocessor, MsrStepsManager, utils
 
 
 def base_path():

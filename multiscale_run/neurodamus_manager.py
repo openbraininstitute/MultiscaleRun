@@ -20,6 +20,7 @@ class MsrNeurodamusManager:
             config: The configuration for the neurodamus manager.
         """
         logging.info("instantiate ndam")
+
         self.ndamus = neurodamus.Neurodamus(
             str(config.config_path),
             logging_level=config.multiscale_run.logging_level,
@@ -321,10 +322,16 @@ class MsrNeurodamusManager:
 
             logging.info(f"Working GIDs to Total GIDs Ratio:\n{', '.join(ratios)}")
 
-            logging.info("GIDs that failed:")
-            for r, removal_reasons in enumerate(removed_gids):
-                for gid, reason in removal_reasons.items():
-                    logging.info(f"Rank {r}, GID {gid}: {reason}")
+            any_failed = any(
+                len(removal_reasons) > 0 for removal_reasons in removed_gids
+            )
+            if any_failed:
+                logging.info("GIDs that failed:")
+                for r, removal_reasons in enumerate(removed_gids):
+                    for gid, reason in removal_reasons.items():
+                        logging.info(f"Rank {r}, GID {gid}: {reason}")
+            else:
+                logging.info("No failed GIDs")
 
             if sum(working_gids) == 0:
                 raise utils.MsrException(

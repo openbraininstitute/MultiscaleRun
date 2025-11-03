@@ -50,14 +50,10 @@ class MsrSimulation:
         import neurodamus  # noqa: F401
 
         # steps_manager should go before preprocessor until https://github.com/CNS-OIST/HBP_STEPS/issues/1166 is solved
-        from multiscale_run import (  # noqa: F401
-            bloodflow_manager,
-            connection_manager,
-            metabolism_manager,
-            neurodamus_manager,
-            preprocessor,
-            steps_manager,
-        )
+        from multiscale_run import (bloodflow_manager,  # noqa: F401
+                                    connection_manager, metabolism_manager,
+                                    neurodamus_manager, preprocessor,
+                                    steps_manager)
 
     @_run_once
     def configure(self):
@@ -80,17 +76,12 @@ class MsrSimulation:
         self.configure()
         logging.info("Initialize simulation")
         if self.conf.is_metabolism_active():
-            from diffeqpy import de
             from julia import Main as JMain
         from neurodamus.utils.timeit import timeit
 
-        from multiscale_run import (
-            bloodflow_manager,
-            metabolism_manager,
-            neurodamus_manager,
-            reporter,
-            steps_manager,
-        )
+        from multiscale_run import (bloodflow_manager, metabolism_manager,
+                                    neurodamus_manager, reporter,
+                                    steps_manager)
 
         with timeit(name="initialization"):
             self.prep.autogen_node_sets()
@@ -150,9 +141,11 @@ class MsrSimulation:
             self.rep = reporter.MsrReporter(
                 config=self.conf,
                 gids=self.neurodamus_manager.gids(),
-                n_bf_segs=self.managers["bloodflow"].n_segs
-                if self.conf.is_bloodflow_active()
-                else 0,
+                n_bf_segs=(
+                    self.managers["bloodflow"].n_segs
+                    if self.conf.is_bloodflow_active()
+                    else 0
+                ),
             )
 
             # apply all the connections for initialization
@@ -208,6 +201,7 @@ class MsrSimulation:
         time_steps = msr_utils.timesteps(
             self.conf.run.tstop, self.conf.multiscale_run_dt
         )
+
         for t in ProgressBar(time_step_n)(time_steps):
             i_ndam += self.conf.multiscale_run.ndts
             with timeit(name="main_loop"):
