@@ -39,7 +39,7 @@ class MsrMetabolismManager:
         "exclude_neuron": MsrExcludeNeuronException,
     }
 
-    def __init__(self, config, main, neuron_pop_name: str, raw_gids: list[int]):
+    def __init__(self, config, neuron_pop_name: str, raw_gids: list[int]):
         """Initialize the MsrMetabolismManager.
 
         Args:
@@ -49,8 +49,11 @@ class MsrMetabolismManager:
             gids: list of cells to reset.
         """
         self.config = config
-        self.load_metabolism_data(main)
-        self.gen_metabolism_model(main)
+        from julia import Main as JMain
+        self.JMain = JMain
+        self.JMain.eval("using DifferentialEquations: ODEProblem, solve, Rosenbrock23")
+        self.load_metabolism_data()
+        self.gen_metabolism_model()
         self.vm = None  # read/write values for metab
         self.parameters = None  # read values for metab
         self.tspan_m = (-1, -1)
@@ -98,13 +101,10 @@ class MsrMetabolismManager:
         return [1] * self.parameters.shape[0]
 
     @utils.logs_decorator
-    def load_metabolism_data(self, main):
+    def load_metabolism_data(self):
         """Load metabolism data and parameters from Julia scripts.
 
         This method loads metabolism data and parameters from Julia scripts if the metabolism type is "main".
-
-        Args:
-            main: An instance of the main class.
         """
         # includes
         cmd = (
@@ -122,37 +122,24 @@ class MsrMetabolismManager:
                 ]
             )
         )
-        main.eval(cmd)
+        self.JMain.eval(cmd)
 
     @utils.logs_decorator
-    def gen_metabolism_model(self, main):
+    def gen_metabolism_model(self):
         """Generate the metabolism model from Julia code.
 
         This method generates the metabolism model using Julia code.
-
-        Args:
-            main: An instance of the main class.
 
         Returns:
             None
         """
         with open(str(self.config.multiscale_run.metabolism.julia_code_path), "r") as f:
             julia_code = f.read()
-        self.model = main.eval(julia_code)
+        self.model = self.JMain.eval(julia_code)
 
     @utils.logs_decorator
     def _advance_gid(self, igid: int, i_metab: int, failed_cells: list[str]):
-        """Advance metabolism simulation for gid: gids[igid].
-
-        Args:
-            igid: Index of the gid.
-            i_metab: metabolism, time step counter.
-            failed_cells: List of errors for the failed cells. Cells that are alive have `None` as value here.
-
-        Raises:
-            MsrMetabManagerException: If sol is None.
-        """
-        from diffeqpy import de
+        """Advance metabolism simulation for gid: gids[igid]."""
 
         metab_dt = self.config.metabolism_dt
         tspan_m = (
@@ -160,28 +147,31 @@ class MsrMetabolismManager:
             1e-3 * (float(i_metab) + 1.0) * metab_dt,
         )
 
-        prob = de.ODEProblem(
-            self.model, self.vm[igid, :], tspan_m, self.parameters[igid, :]
-        )
+        J = self.JMain
+        # Assign model and convert inputs
+        J.model = self.model
+        J.u0 = J.eval(f"convert(Array{{Float64}}, {list(self.vm[igid, :])})")
+        J.p  = J.eval(f"convert(Array{{Float64}}, {list(self.parameters[igid, :])})")
+        J.tspan = J.eval(f"({tspan_m[0]}, {tspan_m[1]})")
+
         try:
             logging.info(f"   solve ODE problem {igid}/{self.ngids}")
-            sol = de.solve(
-                prob,
-                de.Rosenbrock23(autodiff=False),
-                **self.config.multiscale_run.metabolism.solver_kwargs,
-            )
+            J.eval("""
+                prob = ODEProblem(model, u0, tspan, p)
+                sol = solve(prob, Rosenbrock23(autodiff=false))
+            """)
+            retcode = J.eval("sol.retcode")
             logging.info("   /solve ODE problem")
-            if str(sol.retcode) != "<PyCall.jlwrap Success>":
-                utils.rank_print(f" !!! sol.retcode: {str(sol.retcode)}")
+
+            if str(retcode) != "<PyCall.jlwrap Success>":
+                utils.rank_print(f" !!! sol.retcode: {str(retcode)}")
+                failed_cells[igid] = f"solver failed: {str(retcode)}"
+            else:
+                self.vm[igid, :] = J.eval("sol.u[end]")
 
         except Exception as e:
-            failed_cells[igid] = f"solver failed: {str(sol.retcode)}"
-            error_solver = e
-
-        if sol is None:
-            raise MsrMetabManagerException(f"sol is None: {error_solver}")
-
-        self.vm[igid, :] = sol.u[-1]
+            failed_cells[igid] = f"solver failed: {str(e)}"
+            raise e
 
     @utils.logs_decorator
     def advance(self, i_metab: int, failed_cells: list) -> None:
@@ -198,6 +188,7 @@ class MsrMetabolismManager:
                 continue
 
             self._advance_gid(igid=igid, i_metab=i_metab, failed_cells=failed_cells)
+            # self._advance_gid2(igid=igid, i_metab=i_metab, failed_cells=failed_cells)
 
     def _get_GLY_a_and_mito_vol_frac(self, raw_gid: int):
         """Get glycogen (GLY_a) and mitochondrial volume fraction.

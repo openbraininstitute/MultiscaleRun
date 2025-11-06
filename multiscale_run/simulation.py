@@ -75,8 +75,6 @@ class MsrSimulation:
     def initialize(self):
         self.configure()
         logging.info("Initialize simulation")
-        if self.conf.is_metabolism_active():
-            from julia import Main as JMain
         from neurodamus.utils.timeit import timeit
 
         from multiscale_run import (bloodflow_manager, metabolism_manager,
@@ -124,7 +122,6 @@ class MsrSimulation:
             if self.conf.is_metabolism_active():
                 self.managers["metabolism"] = metabolism_manager.MsrMetabolismManager(
                     config=self.conf,
-                    main=JMain,
                     neuron_pop_name=self.managers[
                         "neurodamus"
                     ].neuron_manager.population_name,

@@ -219,11 +219,6 @@ def check(**kwargs):
 
     sane &= _check_local_neuron_mechanisms()
 
-    if sim.conf.multiscale_run.with_metabolism:
-        LOGGER.warning("Checking installation of differential equations solver...")
-        # noinspection PyUnresolvedReferences
-        from diffeqpy import de  # noqa : F401
-
     if sane:
         LOGGER.warning("The simulation environment looks sane")
     else:
