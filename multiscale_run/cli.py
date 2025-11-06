@@ -20,22 +20,14 @@ import textwrap
 import warnings
 from pathlib import Path
 
-import diffeqpy
 import scipy.sparse
 from nbconvert.nbconvertapp import main as NbConvertApp
 
-from . import __version__
-from .config import (
-    DEFAULT_CIRCUIT,
-    NAMED_CIRCUITS,
-)
+from . import __version__, utils
+from .config import DEFAULT_CIRCUIT, NAMED_CIRCUITS
 from .simulation import MsrSimulation
-from .templates import (
-    BB5_JULIA_ENV,
-    MSR_CONFIG_JSON,
-    MSR_POSTPROC,
-    SBATCH_TEMPLATE,
-)
+from .templates import (JULIA_ENV, MSR_CONFIG_JSON, MSR_POSTPROC,
+                        SBATCH_TEMPLATE)
 from .utils import MsrException, copy_symlinks, merge_dicts, pushd
 
 
@@ -59,10 +51,21 @@ def julia_env(func):
 
     @functools.wraps(func)
     def wrap(**kwargs):
-        julia_depot = Path(".julia")
-        julia_project = Path(".julia_environment")
-        os.environ.setdefault("JULIA_DEPOT_PATH", str(julia_depot.resolve()))
-        os.environ.setdefault("JULIA_PROJECT", str(julia_project.resolve()))
+        if Path(".julia").exists():
+            utils.print_once(f"use local .julia")
+            julia_depot = Path(".julia")
+            os.environ.setdefault("JULIA_DEPOT_PATH", str(julia_depot.resolve()))
+            os.environ.setdefault("JULIAUP_DEPOT_PATH", str(julia_depot.resolve()))
+
+        # Force JULIA_NUM_THREADS to 1
+        os.environ["JULIA_NUM_THREADS"] = "1"
+
+        utils.print_once(
+            f"JULIA_DEPOT_PATH = {os.environ.get('JULIA_DEPOT_PATH', 'Not set')}"
+        )
+        utils.print_once(
+            f"JULIAUP_DEPOT_PATH = {os.environ.get('JULIAUP_DEPOT_PATH', 'Not set')}"
+        )
         return func(**kwargs)
 
     return wrap
@@ -95,8 +98,8 @@ def julia_cmd(*instructions):
     def print_os_var(var):
         LOGGER.warning(f"{var}: {os.environ.get(var, 'NOT_FOUND')}")
 
-    print_os_var("JULIA_PROJECT")
     print_os_var("JULIA_DEPOT_PATH")
+    print_os_var("JULIAUP_DEPOT_PATH")
 
     LOGGER.warning(f"Running the command '{cmd}' in {Path.cwd()}")
     subprocess.check_call(cmd)
@@ -114,7 +117,6 @@ def julia_pkg(command, package):
 
 
 @command
-@julia_env
 def julia(args=None, **kwargs):
     """Run Julia within the simulation environment"""
     command = ["julia"]
@@ -125,9 +127,7 @@ def julia(args=None, **kwargs):
 
 
 @command
-def init(
-    directory, circuit, julia="shared", check=True, force=False, metabolism="standard"
-):
+def init(directory, circuit, check=True, force=False, metabolism="standard"):
     """Setup a new simulation"""
 
     if not force:
@@ -138,7 +138,6 @@ def init(
                 f"Directory '{directory}' is not empty. "
                 "Use option '-f' to overwrite the content of the directory."
             )
-    assert julia in ["shared", "create", "no"]
     assert metabolism in ["standard", "young", "aged"]
 
     circuit_def = NAMED_CIRCUITS[circuit]
@@ -156,58 +155,15 @@ def init(
     copy_symlinks(circuit_def.path, ".")
 
     rd = {"msr_version": str(__version__)}
-    if julia == "no":
-        rd["with_metabolism"] = False
-    else:
-        if julia == "shared" and not BB5_JULIA_ENV.exists():
-            LOGGER.warning("Cannot find shared Julia environment at %s", BB5_JULIA_ENV)
-            LOGGER.warning("Creating a new one")
-            julia = "create"
-        if julia == "shared":
-            LOGGER.warning("Reusing shared Julia environment at %s", BB5_JULIA_ENV)
-            for dir in [".julia", ".julia_environment"]:
-                dir = Path(dir)
-                if dir.is_symlink():
-                    dir.unlink()
-                elif dir.is_dir():
-                    shutil.rmtree(dir)
-                os.symlink(BB5_JULIA_ENV / dir.name[1:], dir)
-        elif julia == "create":
-            Path(".julia").mkdir(exist_ok=True)
-            Path(".julia_environment").mkdir(exist_ok=True)
-
-            @julia_env
-            def create():
-                LOGGER.warning("Installing Julia package 'IJulia'")
-                julia_pkg("add", "IJulia")
-                LOGGER.warning(
-                    "Installing Julia packages required to solve differential equations"
-                )
-                diffeqpy.install()
-                LOGGER.warning("Precompiling all Julia packages")
-                julia_cmd("Pkg.instantiate(; verbose=true)")
-
-                rd["with_metabolism"] = True
-
-            create()
-
-        @julia_env
-        def check_julia_env():
-            LOGGER.warning("Checking installation of differential equations solver...")
-            # noinspection PyUnresolvedReferences
-            from diffeqpy import de  # noqa : F401
-
-        if check:
-            check_julia_env()
 
     circuit_config = circuit_def.json()
     if metabolism != "standard":
         p_split = circuit_config["multiscale_run"]["metabolism"][
             "julia_code_path"
         ].rsplit(".", 1)
-        rd.setdefault("metabolism", {})["julia_code_path"] = (
-            f"{p_split[0]}_{metabolism}.{p_split[1]}"
-        )
+        rd.setdefault("metabolism", {})[
+            "julia_code_path"
+        ] = f"{p_split[0]}_{metabolism}.{p_split[1]}"
 
     circuit_config = merge_dicts(child={"multiscale_run": rd}, parent=circuit_config)
     with open(MSR_CONFIG_JSON, "w") as ostr:
@@ -240,7 +196,6 @@ def init(
 
 
 @command
-@julia_env
 def compute(**kwargs):
     """Compute the simulation"""
     _check_local_neuron_mechanisms()
@@ -255,7 +210,6 @@ def stats(**kwargs):
 
 
 @command
-@julia_env
 def check(**kwargs):
     """Check environment sanity"""
     sane = True
@@ -336,7 +290,7 @@ def virtualenv(venv=".venv", spec="py-multiscale-run@develop", **kwargs):
 
     # ensure spack is loaded
     if "SPACK_ROOT" not in os.environ:
-        if BB5_JULIA_ENV.exists():
+        if JULIA_ENV.exists():
             logging.warning(
                 textwrap.dedent(
                     """\
@@ -538,7 +492,7 @@ def edit_mod_files(**kwargs):
         == 0
     )
     build_cmd = f"build_neurodamus.sh '{ndam_mod}' --only-neuron"
-    if BB5_JULIA_ENV.exists() and intel_compiler:
+    if JULIA_ENV.exists() and intel_compiler:
         build_cmd = "module load unstable intel-oneapi-compilers ; " + build_cmd
     subprocess.check_call(build_cmd, shell=True)
     nrn_mechanims = (Path(platform.machine()) / "libnrnmech.so").resolve()
@@ -602,15 +556,6 @@ def argument_parser():
         default=False,
         action="store_true",
         help="Force files creations if directory already exists",
-    )
-    parser_init.add_argument(
-        "--julia",
-        choices=["shared", "create", "no"],
-        default="shared",
-        help="Choose Julia installation. "
-        "'shared' (the default) to reuse an existing env on BB5, "
-        "'create' to construct a new env locally, "
-        "'no' to skip Julia environment (typically if metabolism model is not required)",
     )
     parser_init.add_argument(
         "--metabolism",

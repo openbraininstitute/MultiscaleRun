@@ -79,6 +79,7 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+juliaenv/
 
 # mkdocs documentation
 /site
@@ -91,3 +92,6 @@ cython_debug/
 
 # IDE
 .idea/
+
+# tests
+tiny_CI_test/

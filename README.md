@@ -1,3 +1,68 @@
+
+## MultiscaleRun
+
+MultiscaleRun is a Python package to run brain cells simulation at different scales.
+It orchestrates the coupling between several brain simulators like Neuron and
+STEPS but also solvers like AstroVascPy for the cerebral blood flow.
+The package also embeds a Julia solver to simulate the astrocytes activity.
+
+The Python package includes a program called `multiscale-run` that lets you run
+and analyze multiscale simulations from start to finish.
+
+## Testing for Development
+
+### Prerequisites
+- have an OBI spack installation working: https://github.com/openbraininstitute/spack
+- install julia with juliaup (not strictly necessary but it is harder to remove than to leave as is)
+
+### Setup
+
+You just need to run `setup.sh` at least once before running the simulation.
+
+The script does this:
+- set various env variables
+- create a `spackenv` folder with the necessary dependencies
+- create a `julia` project with the necessary dependencies in `juliaenv`
+- create a python virtual env in `venv` 
+- call `pip install -e .` for development
+- create the test folder `tiny_CI_test`
+- fill it with the necessary data
+
+```bash
+source setup.sh
+```
+
+If a folder is present (`spackenv`, `venv`, `juliaenv`) the script skips that installation step assuming that is already done. If any of the folders are missing, the script redoes the setup. 
+
+The environemnt is still set as it is needed. 
+
+You can always modify them and recall `setup.sh`. It will not override your changes. 
+
+### Test
+
+You just need to go to `tiny_CI_test` and run. The simulation is too slow with just one core. I suggest at least 8 cores. Do not go above 90 for now as this leaves some cores without neurons (edge case that I did not check). 
+
+```bash
+cd tiny_CI_test
+mpirun -np 8 multiscale-run compute
+```
+
+## Authors
+
+Polina Shichkova, Alessandro Cattabiani, Christos Kotsalos, and Tristan Carel
+
+## Acknowledgment
+
+The development of this software was supported by funding to the Blue Brain Project,
+a research center of the École polytechnique fédérale de Lausanne (EPFL),
+from the Swiss government's ETH Board of the Swiss Federal Institutes of Technology.
+
+Copyright (c) 2005-2023 Blue Brain Project/EPFL
+Copyright (c) 2025 Open Brain Institute
+
+
+<!-- # THE FOLLOWING README IS OLD AND NEEDS TO BE UPDATED
+
 # MultiscaleRun [![PyPI version](https://badge.fury.io/py/multiscale-run.svg)](https://badge.fury.io/py/multiscale-run) [![Documentation Status](https://readthedocs.org/projects/multiscalerun/badge/?version=stable)](https://multiscalerun.readthedocs.io/stable/?badge=stable)
 
 MultiscaleRun is a Python package to run brain cells simulation at different scales.
@@ -254,14 +319,6 @@ For more on how to use ARM MAP on BB5, please check [this page](https://bbpteam.
 
 ## 0.1 - 2023-11-30
 
-First release of the code shipped as a Python package
+First release of the code shipped as a Python package -->
 
-## Authors
 
-Polina Shichkova, Alessandro Cattabiani, Christos Kotsalos, and Tristan Carel
-
-## Funding and Acknowledgments
-
-The development of this software was supported by funding to the Blue Brain Project, a research center of the École polytechnique fédérale de Lausanne (EPFL), from the Swiss government’s ETH Board of the Swiss Federal Institutes of Technology.
-
-Copyright (c) 2023-2024 Blue Brain Project/EPFL

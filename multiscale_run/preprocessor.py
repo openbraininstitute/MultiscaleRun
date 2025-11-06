@@ -2,11 +2,9 @@ import json
 import logging
 from pathlib import Path
 
-import gmsh
 import libsonata
 import numpy as np
 import pandas as pd
-import trimesh
 
 from . import utils
 
@@ -242,6 +240,8 @@ class MsrPreprocessor:
             >>> points = np.array([[x1, y1, z1], [x2, y2, z2], ...])
             >>> gen_stl_and_geo(points)
         """
+        import trimesh
+
         point_cloud = trimesh.PointCloud(points)
         surface_mesh = point_cloud.convex_hull
 
@@ -332,6 +332,7 @@ Volume(1) = {{1}};
 
 Physical Volume("{phys_vol}", 1) = {{1}};
         """
+        import gmsh
 
         mesh_path = self.config.multiscale_run.mesh_path
         with open(str(mesh_path.with_suffix(".geo")), "w") as geo_file:
@@ -380,6 +381,8 @@ Physical Volume("{phys_vol}", 1) = {{1}};
         Example:
             >>> gen_msh()
         """
+        import gmsh
+
         script_file = str(self.config.multiscale_run.mesh_path.with_suffix(".geo"))
         output_file = str(self.config.multiscale_run.mesh_path.with_suffix(".msh"))
         refinement_steps = self.config.multiscale_run.preprocessor.mesh.refinement_steps
@@ -469,6 +472,8 @@ Physical Volume("{phys_vol}", 1) = {{1}};
     @property
     def ntets(self):
         """Count the total number of tets in the mesh"""
+        import gmsh
+
         gmsh.initialize()
         try:
             gmsh.open(str(self.config.multiscale_run.mesh_path))

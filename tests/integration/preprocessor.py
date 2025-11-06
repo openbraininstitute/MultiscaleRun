@@ -1,12 +1,7 @@
 from neuron import h
 
-from multiscale_run import (
-    MsrBloodflowManager,
-    MsrConfig,
-    MsrNeurodamusManager,
-    MsrPreprocessor,
-    utils,
-)
+from multiscale_run import (MsrBloodflowManager, MsrConfig,
+                            MsrNeurodamusManager, MsrPreprocessor, utils)
 
 
 @utils.pushtempd

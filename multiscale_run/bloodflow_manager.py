@@ -3,9 +3,6 @@ from collections import defaultdict
 
 import numpy as np
 import pandas as pd
-from astrovascpy import bloodflow
-from astrovascpy.utils import Graph, create_entry_largest_nodes
-from vascpy import PointVasculature
 
 from . import utils
 
@@ -115,6 +112,8 @@ class MsrBloodflowManager:
         Returns
             list: A list of bloodflow input nodes as node IDs.
         """
+        from astrovascpy.utils import create_entry_largest_nodes
+
         self.entry_nodes = create_entry_largest_nodes(
             graph=self.graph, params=self.parameters
         )
@@ -136,6 +135,9 @@ class MsrBloodflowManager:
             - The loaded vasculature graph is stored in the 'graph' attribute of the MsrBloodflowManager.
             - This method prepares the vasculature graph by setting edge data and creating a MultiIndex for edge properties based on section and segment IDs.
         """
+        from astrovascpy.utils import Graph
+        from vascpy import PointVasculature
+
         pv = PointVasculature.load_sonata(vasculature_path)
         self.graph = Graph.from_point_vasculature(pv)
 
@@ -155,6 +157,8 @@ class MsrBloodflowManager:
             - The calculated boundary flows are based on the input flow rate ('input_v') and the entry nodes in the vasculature graph.
             - The calculated boundary flows are stored in the 'boundary_flows' attribute.
         """
+        from astrovascpy import bloodflow
+
         input_flows = None
         if self.entry_nodes is not None:
             input_flows = [self.parameters["input_v"]] * len(self.entry_nodes)
@@ -174,6 +178,8 @@ class MsrBloodflowManager:
               updated flow and volume properties for the vasculature.
             - It is typically used in the context of multiscale simulations involving blood flow.
         """
+        from astrovascpy import bloodflow
+
         bloodflow.update_static_flow_pressure(
             graph=self.graph,
             input_flow=self.boundary_flows,
