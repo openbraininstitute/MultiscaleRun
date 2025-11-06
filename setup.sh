@@ -47,19 +47,12 @@ Pkg.activate(\"$JULIAENV_DIR\")
 println(\"→ Installing Julia packages...\")
 
 # Add required packages
-for pkg in [\"IJulia\", \"PyCall\", \"StructUtils\", \"PythonCall\", \"DifferentialEquations\"]
+for pkg in [\"IJulia\", \"PyCall\", \"PythonCall\", \"DifferentialEquations\"]
     Pkg.add(pkg)
 end
 
 # Ensure environment is synced
 Pkg.instantiate(verbose=true)
-
-# Build packages with compiled extensions
-Pkg.build(\"StructUtils\")
-Pkg.build(\"PythonCall\") 
-
-# Retry loading compiled extensions
-Base.retry_load_extensions()
 
 # Precompile all packages
 Pkg.precompile()
