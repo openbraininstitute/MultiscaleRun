@@ -47,6 +47,20 @@ cd tiny_CI_test
 mpirun -np 8 multiscale-run compute
 ```
 
+#### Note
+
+At the moment this simulation depleates atpi and fails after 300 ms. TODO: fix it.
+
+#### Postprocessing
+
+After the simulation has completed you can check the results with the postproc jupyter notebook. It is already in the current folder. Just run jupyter:
+
+```bash
+jupyter lab
+```
+
+open `postproc.ipynb` and run. By default it presents all the traces for the gids `[0, 1, 2]`. The notebook should be self-explainatory and can be changed at will. 
+
 ## Authors
 
 Polina Shichkova, Alessandro Cattabiani, Christos Kotsalos, and Tristan Carel
