@@ -17,6 +17,7 @@ else
   spack add neurodamus-models@develop+ngv+metabolism model=neocortex
   spack add py-neurodamus@develop
   spack add openmpi
+  # spack add py-jupyterlab
   spack concretize -f
   spack install
   spack env deactivate
