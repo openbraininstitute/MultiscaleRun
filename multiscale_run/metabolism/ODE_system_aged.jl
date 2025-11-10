@@ -8,7 +8,7 @@ function metabolism!(du,u,p,t)
    
        Args:
    
-               Formally, the args are du,u,p,t. In fact, du is a placeholder to keep the solution of the system. It should be the same size as u, which is an initial values list. Next, p is a list of parameters and t is a time span. Please see the details on arguments in https://docs.sciml.ai/DiffEqDocs/stable/  In diffeqpy interface used in multiscale run we just define u,t,p as input args.
+               Formally, the args are du,u,p,t. In fact, du is a placeholder to keep the solution of the system. It should be the same size as u, which is an initial values list. Next, p is a list of parameters and t is a time span. Please see the details on arguments in https://docs.sciml.ai/DiffEqDocs/stable/  In the interface used in multiscale run we just define u,t,p as input args.
    
    
    

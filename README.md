@@ -19,6 +19,10 @@ and analyze multiscale simulations from start to finish.
 
 You just need to run `setup.sh` at least once before running the simulation.
 
+```bash
+source setup.sh
+```
+
 The script does this:
 - set various env variables
 - create a `spackenv` folder with the necessary dependencies
@@ -27,10 +31,6 @@ The script does this:
 - call `pip install -e .` for development
 - create the test folder `tiny_CI_test`
 - fill it with the necessary data
-
-```bash
-source setup.sh
-```
 
 If a folder is present (`spackenv`, `venv`, `juliaenv`) the script skips that installation step assuming that is already done. If any of the folders are missing, the script redoes the setup. 
 

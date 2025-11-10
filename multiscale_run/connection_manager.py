@@ -437,7 +437,7 @@ class MsrConnectionManager:
 
         After, the val is set for both, source and destination. As a side effect, results are
         source <-> desitination swap invaritant (obviously not the case for the other schemes) apart from
-        the fact that the sync may be done in different parts of the code.
+        the fact that the sync may be done in different parts of the code
 
         Args:
             dest_manager_name: destination manager name.

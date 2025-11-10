@@ -2,7 +2,7 @@
     "multiscale_run": {
         "with_steps": false,
         "with_bloodflow": false,
-        "with_metabolism": false,
+        "with_metabolism": true,
         "cache_save": true,
         "cache_load": true,
         "logging_level": 1,

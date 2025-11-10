@@ -25,7 +25,7 @@ fi
 
 # julia
 
-JULIAENV_DIR="juliaenv"
+JULIAENV_DIR="$PWD/juliaenv"
 export PYTHON=$(which python3)
 export JULIA_NUM_THREADS=1
 export JULIA_DEPOT_PATH="$PWD/$JULIAENV_DIR"
@@ -47,18 +47,12 @@ Pkg.activate(\"$JULIAENV_DIR\")
 println(\"→ Installing Julia packages...\")
 
 # Add required packages
-for pkg in [\"IJulia\", \"PyCall\", \"StructUtils\", \"PythonCall\", \"DifferentialEquations\"]
+for pkg in [\"IJulia\", \"PyCall\", \"PythonCall\", \"DifferentialEquations\"]
     Pkg.add(pkg)
 end
 
 # Ensure environment is synced
 Pkg.instantiate(verbose=true)
-
-# Build packages with compiled extensions
-Pkg.build(\"StructUtils\")
-
-# Retry loading compiled extensions
-Base.retry_load_extensions()
 
 # Precompile all packages
 Pkg.precompile()
@@ -77,9 +71,7 @@ else
   python -m venv venv
   source venv/bin/activate
   pip install --upgrade pip
-  pip install -e . # this should have pyjulia inside
-  python -c "import julia; julia.install()"
-  python -c "from diffeqpy import de"
+  pip install -e .
 fi
 
 # set new test
