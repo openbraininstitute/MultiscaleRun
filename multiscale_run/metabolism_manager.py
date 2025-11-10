@@ -139,7 +139,15 @@ class MsrMetabolismManager:
 
     @utils.logs_decorator
     def _advance_gid(self, igid: int, i_metab: int, failed_cells: list[str]):
-        """Advance metabolism simulation for gid: gids[igid]."""
+        """Advance metabolism simulation for gid: gids[igid].
+        Args:
+            igid: Index of the gid.
+            i_metab: metabolism, time step counter.
+            failed_cells: List of errors for the failed cells. 
+                Cells that are alive have `None` as value here.
+        Raises:
+            MsrMetabManagerException: If sol is None.
+        """
 
         metab_dt = self.config.metabolism_dt
         tspan_m = (
@@ -188,7 +196,6 @@ class MsrMetabolismManager:
                 continue
 
             self._advance_gid(igid=igid, i_metab=i_metab, failed_cells=failed_cells)
-            # self._advance_gid2(igid=igid, i_metab=i_metab, failed_cells=failed_cells)
 
     def _get_GLY_a_and_mito_vol_frac(self, raw_gid: int):
         """Get glycogen (GLY_a) and mitochondrial volume fraction.
