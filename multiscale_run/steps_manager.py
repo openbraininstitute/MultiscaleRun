@@ -4,9 +4,12 @@ import time
 from pathlib import Path
 
 import numpy as np
+
 # import steps.interface
 from scipy import constants as spc
 from scipy import sparse
+
+# TODO remove exclusion of multiscale_run/steps_manager.py from pyproject.toml once steps is reinstanted
 # from steps.geom import *
 # from steps.model import *
 # from steps.rng import *
@@ -62,9 +65,7 @@ class MsrStepsManager:
             steps_spec = getattr(
                 getattr(self.sim, self.config.multiscale_run.steps.compname), spec_name
             )
-            steps_spec.Conc = (
-                1e-3 * spec.conc_0 * self.config.multiscale_run.steps.conc_factor
-            )
+            steps_spec.Conc = 1e-3 * spec.conc_0 * self.config.multiscale_run.steps.conc_factor
 
     @utils.logs_decorator
     def _init_model(self):
@@ -95,9 +96,7 @@ class MsrStepsManager:
         # STEPS default length scale is m
         # NEURON default length scale is um
 
-        mesh_path = MsrStepsManager._auto_select_mesh(
-            self.config.multiscale_run.mesh_path
-        )
+        mesh_path = MsrStepsManager._auto_select_mesh(self.config.multiscale_run.mesh_path)
 
         self.msh = DistMesh(str(mesh_path), scale=self.config.multiscale_run.mesh_scale)
 
@@ -134,10 +133,7 @@ class MsrStepsManager:
             return mesh_path
 
         split_mesh_path = mesh_path / f"split_{utils.size()}"
-        if (
-            split_mesh_path.exists()
-            and len(list(split_mesh_path.iterdir())) >= utils.size()
-        ):
+        if split_mesh_path.exists() and len(list(split_mesh_path.iterdir())) >= utils.size():
             ans = split_mesh_path / mesh_path.name
         else:
             ans = (mesh_path / mesh_path.name).with_suffix(".msh")
@@ -169,9 +165,7 @@ class MsrStepsManager:
         Returns
             tuple: A tuple containing the minimum and maximum coordinates of the mesh bounding box.
         """
-        return np.array(self.msh.bbox.min.tolist()), np.array(
-            self.msh.bbox.max.tolist()
-        )
+        return np.array(self.msh.bbox.min.tolist()), np.array(self.msh.bbox.max.tolist())
 
     @utils.logs_decorator
     def get_tetXtetMat(self):
@@ -180,9 +174,7 @@ class MsrStepsManager:
         Returns
             sparse.csr_matrix: A sparse CSR matrix for measuring species dispersion in tetrahedra.
         """
-        return sparse.diags(
-            np.reciprocal(self.tet_vols) * np.mean(self.tet_vols), format="csr"
-        )
+        return sparse.diags(np.reciprocal(self.tet_vols) * np.mean(self.tet_vols), format="csr")
 
     def get_tetXtetInvMmat(self):
         """Get the inverse of the tetrahedra matrix for debugging.
@@ -243,9 +235,7 @@ class MsrStepsManager:
 
         with self.msh.asLocal():
             for i in (
-                tqdm(range(utils.size()), file=sys.stdout)
-                if utils.rank0()
-                else range(utils.size())
+                tqdm(range(utils.size()), file=sys.stdout) if utils.rank0() else range(utils.size())
             ):
                 if utils.rank0():
                     # needed, otherwise tqdm output is not flushed.
@@ -277,9 +267,7 @@ class MsrStepsManager:
                             global_tet_idx,
                         ]
                         for isec, sec in enumerate(pts)
-                        for iseg, seg in enumerate(
-                            self.msh.intersect(sec, raw=True, local=False)
-                        )
+                        for iseg, seg in enumerate(self.msh.intersect(sec, raw=True, local=False))
                         for global_tet_idx, ratio in seg
                     ]
                 )
@@ -345,9 +333,7 @@ class MsrStepsManager:
                     tet_global_idx[0][0], mesh=self.msh, local=False
                 ).toLocal()
                 is not None
-                and steps.geom.TetReference(
-                    tet_global_idx[0][0], mesh=self.msh, local=False
-                )
+                and steps.geom.TetReference(tet_global_idx[0][0], mesh=self.msh, local=False)
                 .toLocal()
                 .containsPoint(pts[idx * 2, :])
             ]
@@ -428,9 +414,7 @@ class MsrStepsManager:
 
         return ans
 
-    def add_curr_to_conc(
-        self, species_name: str, vals: list[float], idxs: list[int] = None
-    ):
+    def add_curr_to_conc(self, species_name: str, vals: list[float], idxs: list[int] = None):
         """Add membrane currents (from neurodamus for example) to STEPS concentrations.
 
         This function updates concentrations of a specified species in the model using the provided membrane currents.
@@ -464,9 +448,7 @@ class MsrStepsManager:
             * 1e-3
             * self.config.multiscale_run.steps.conc_factor
             * (self.config.steps_dt * 1e-3)
-            / (
-                spc.N_A * spec.ncharges * spc.physical_constants["elementary charge"][0]
-            ),
+            / (spc.N_A * spec.ncharges * spc.physical_constants["elementary charge"][0]),
             self.tet_vols * 1e3,
         )
 
@@ -478,10 +460,7 @@ class MsrStepsManager:
             negative_values = conc[negative_indices]
             error_message = "Negative values found at indices and values: "
             error_message += ", ".join(
-                [
-                    f"({idx}, {val})"
-                    for idx, val in zip(negative_indices[0], negative_values)
-                ]
+                [f"({idx}, {val})" for idx, val in zip(negative_indices[0], negative_values)]
             )
             raise ValueError(error_message)
 

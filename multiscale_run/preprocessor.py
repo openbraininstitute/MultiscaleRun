@@ -71,9 +71,7 @@ class MsrPreprocessor:
         Example:
             >>> gen_node_sets()
         """
-        output_filename = self._check_filename_existence(
-            Path(self.config.node_sets_file)
-        )
+        output_filename = self._check_filename_existence(Path(self.config.node_sets_file))
         if output_filename is None:
             return
 
@@ -120,9 +118,7 @@ class MsrPreprocessor:
         if hasattr(self, "neuro_df"):
             return
 
-        pop_name = (
-            self.config.multiscale_run.preprocessor.node_sets.neuron_population_name
-        )
+        pop_name = self.config.multiscale_run.preprocessor.node_sets.neuron_population_name
 
         circuit_config = libsonata.CircuitConfig.from_file(
             str(self.config.config_path.parent / self.config.network)
@@ -186,9 +182,7 @@ class MsrPreprocessor:
             node_ids_population = circuit_config.node_population(pop_name)
             selected_neurons = np.arange(node_ids_population.size, dtype=np.uint16)
             sorted_attr_names = sorted(node_ids_population.attribute_names)
-            sorted_dynamic_attr_names = sorted(
-                node_ids_population.dynamics_attribute_names
-            )
+            sorted_dynamic_attr_names = sorted(node_ids_population.dynamics_attribute_names)
 
             node_selection = libsonata.Selection(values=selected_neurons)
             node_ids = node_selection.flatten()
@@ -245,9 +239,7 @@ class MsrPreprocessor:
         point_cloud = trimesh.PointCloud(points)
         surface_mesh = point_cloud.convex_hull
 
-        for _ in range(
-            self.config.multiscale_run.preprocessor.mesh.surface_subdivisions
-        ):
+        for _ in range(self.config.multiscale_run.preprocessor.mesh.surface_subdivisions):
             surface_mesh = surface_mesh.subdivide()
 
         surface_mesh.update_faces(surface_mesh.unique_faces())
@@ -274,9 +266,7 @@ Physical Volume('{self.config.multiscale_run.steps.compname}', 1) = {{1}};
 
     @utils.logs_decorator
     def _gen_bbox_msh(self, pts):
-        length = (
-            self.config.multiscale_run.preprocessor.mesh.base_length
-        )  # Adjust as needed
+        length = self.config.multiscale_run.preprocessor.mesh.base_length  # Adjust as needed
         phys_vol = self.config.multiscale_run.steps.compname
         refinement_steps = self.config.multiscale_run.preprocessor.mesh.refinement_steps
 

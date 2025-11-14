@@ -52,12 +52,12 @@ def test_steps_connections_mats(tmp_path):
         t = 0.025 * conf.multiscale_run.steps.ndts * it
         steps_m.sim.run(t / 1000)
 
-        assert np.all(
-            steps_m.get_tet_concs(species_name="KK") > 0
-        ), "KK concentration is <=0 in at least one tet"
-        assert np.all(
-            steps_m.get_tet_counts(species_name="KK") > 0
-        ), "KK count is <=0 in at least one tet"
+        assert np.all(steps_m.get_tet_concs(species_name="KK") > 0), (
+            "KK concentration is <=0 in at least one tet"
+        )
+        assert np.all(steps_m.get_tet_counts(species_name="KK") > 0), (
+            "KK count is <=0 in at least one tet"
+        )
 
 
 def test_steps_with_minimesh(tmp_path):

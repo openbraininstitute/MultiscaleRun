@@ -50,10 +50,14 @@ class MsrSimulation:
         import neurodamus  # noqa: F401
 
         # steps_manager should go before preprocessor until https://github.com/CNS-OIST/HBP_STEPS/issues/1166 is solved
-        from multiscale_run import (bloodflow_manager,  # noqa: F401
-                                    connection_manager, metabolism_manager,
-                                    neurodamus_manager, preprocessor,
-                                    steps_manager)
+        from multiscale_run import (
+            bloodflow_manager,  # noqa: F401
+            connection_manager,
+            metabolism_manager,
+            neurodamus_manager,
+            preprocessor,
+            steps_manager,
+        )
 
     @_run_once
     def configure(self):
@@ -77,9 +81,13 @@ class MsrSimulation:
         logging.info("Initialize simulation")
         from neurodamus.utils.timeit import timeit
 
-        from multiscale_run import (bloodflow_manager, metabolism_manager,
-                                    neurodamus_manager, reporter,
-                                    steps_manager)
+        from multiscale_run import (
+            bloodflow_manager,
+            metabolism_manager,
+            neurodamus_manager,
+            reporter,
+            steps_manager,
+        )
 
         with timeit(name="initialization"):
             self.prep.autogen_node_sets()
@@ -122,9 +130,7 @@ class MsrSimulation:
             if self.conf.is_metabolism_active():
                 self.managers["metabolism"] = metabolism_manager.MsrMetabolismManager(
                     config=self.conf,
-                    neuron_pop_name=self.managers[
-                        "neurodamus"
-                    ].neuron_manager.population_name,
+                    neuron_pop_name=self.managers["neurodamus"].neuron_manager.population_name,
                     raw_gids=self.neurodamus_manager.gids(
                         raw=True
                     ),  # libsonata wants gids without offset
@@ -139,9 +145,7 @@ class MsrSimulation:
                 config=self.conf,
                 gids=self.neurodamus_manager.gids(raw=True),
                 n_bf_segs=(
-                    self.managers["bloodflow"].n_segs
-                    if self.conf.is_bloodflow_active()
-                    else 0
+                    self.managers["bloodflow"].n_segs if self.conf.is_bloodflow_active() else 0
                 ),
             )
 
@@ -195,9 +199,7 @@ class MsrSimulation:
         # i_* is the number of time steps of that particular simulator
         i_ndam, i_metab = 0, 0
         time_step_n = int(self.conf.run.tstop / (self.conf.multiscale_run_dt))
-        time_steps = msr_utils.timesteps(
-            self.conf.run.tstop, self.conf.multiscale_run_dt
-        )
+        time_steps = msr_utils.timesteps(self.conf.run.tstop, self.conf.multiscale_run_dt)
 
         for t in ProgressBar(time_step_n)(time_steps):
             i_ndam += self.conf.multiscale_run.ndts
@@ -229,9 +231,7 @@ class MsrSimulation:
                     and i_ndam % self.conf.multiscale_run.metabolism.ndts == 0
                 ):
                     with timeit(name="metabolism_advance"):
-                        self.managers["metabolism"].check_inputs(
-                            failed_cells=failed_cells
-                        )
+                        self.managers["metabolism"].check_inputs(failed_cells=failed_cells)
                         self.managers["metabolism"].advance(
                             i_metab=i_metab, failed_cells=failed_cells
                         )
@@ -269,9 +269,7 @@ class MsrSimulation:
         self.neurodamus_manager.ndamus.sonata_spikes()
         TimerManager.timeit_show_stats()
         utils.comm().Barrier()
-        self.neurodamus_manager.ndamus._touch_file(
-            self.neurodamus_manager.ndamus._success_file
-        )
+        self.neurodamus_manager.ndamus._touch_file(self.neurodamus_manager.ndamus._success_file)
 
 
 def main():

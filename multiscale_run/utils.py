@@ -261,9 +261,7 @@ def cache_decorator(
     if isinstance(field_names, str):
         field_names = [field_names]
 
-    file_names = (
-        field_names if only_rank0 else [f"{i}_rank{rank()}" for i in field_names]
-    )
+    file_names = field_names if only_rank0 else [f"{i}_rank{rank()}" for i in field_names]
 
     def decorator_add_field_method(method):
         @functools.wraps(method)
@@ -294,9 +292,7 @@ def cache_decorator(
             fn = [*fn_npz, *fn_pickle]
 
             if len(fn) > len(file_names):
-                raise FileNotFoundError(
-                    "some files appear as pickle and npz, it is ambiguous"
-                )
+                raise FileNotFoundError("some files appear as pickle and npz, it is ambiguous")
 
             all_files_are_present = len(fn) == len(file_names)
 
@@ -730,10 +726,7 @@ def generate_cube_corners(a: np.ndarray, b: np.ndarray, n: int) -> np.ndarray:
     """
     ab = [a, b]
     ans = np.array(
-        [
-            np.array([ab[i % 2][0], ab[(i // 2) % 2][1], ab[(i // 4) % 2][2]])
-            for i in range(n)
-        ]
+        [np.array([ab[i % 2][0], ab[(i // 2) % 2][1], ab[(i // 4) % 2][2]]) for i in range(n)]
     )
     return ans
 
@@ -928,9 +921,7 @@ class PyExprEval:
             round=round,
             sum=sum,
         )
-        self._se = simpleeval.SimpleEval(
-            functions=functions, names=names, operators=operators
-        )
+        self._se = simpleeval.SimpleEval(functions=functions, names=names, operators=operators)
 
     def __call__(self, expr: str, **names):
         """Evaluate a restricted Python expression made of basic operations on builtin Python types and NumPy arrays.
@@ -961,9 +952,7 @@ class PyExprEval:
         try:
             return self.simple_eval.eval(expr, previously_parsed=tree)
         except simpleeval.InvalidExpression as e:
-            raise MsrException(
-                f"Could not evaluate Python conversion expression: '{expr}'"
-            ) from e
+            raise MsrException(f"Could not evaluate Python conversion expression: '{expr}'") from e
 
     @property
     def simple_eval(self):
@@ -984,6 +973,4 @@ class PyExprEval:
         try:
             return self.simple_eval.parse(expr)
         except simpleeval.InvalidExpression as e:
-            raise MsrException(
-                f"Could not parse Python conversion expression: '{expr}'"
-            ) from e
+            raise MsrException(f"Could not parse Python conversion expression: '{expr}'") from e

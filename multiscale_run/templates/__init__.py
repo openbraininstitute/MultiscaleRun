@@ -16,5 +16,3 @@ MSR_PKG_DIR = TEMPLATES_DIR / "../"
 _jinja_env = Environment(loader=FileSystemLoader(TEMPLATES_DIR))
 
 SBATCH_TEMPLATE = _jinja_env.get_template("simulation.sbatch.jinja")
-
-JULIA_ENV = Path("~").expanduser()

@@ -65,9 +65,7 @@ class MsrBloodflowManager:
         end_node_coords = self.graph.node_properties.iloc[
             self.graph.edge_properties.loc[:, "end_node"]
         ].to_numpy()[:, :3]
-        pts = np.empty(
-            (start_node_coords.shape[0] + end_node_coords.shape[0], 3), dtype=float
-        )
+        pts = np.empty((start_node_coords.shape[0] + end_node_coords.shape[0], 3), dtype=float)
         pts[0::2] = start_node_coords
         pts[1::2] = end_node_coords
         self.seg_points = pts
@@ -114,9 +112,7 @@ class MsrBloodflowManager:
         """
         from astrovascpy.utils import create_entry_largest_nodes
 
-        self.entry_nodes = create_entry_largest_nodes(
-            graph=self.graph, params=self.parameters
-        )
+        self.entry_nodes = create_entry_largest_nodes(graph=self.graph, params=self.parameters)
         logging.info(f"entry nodes: {self.entry_nodes}")
 
     @utils.logs_decorator

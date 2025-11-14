@@ -62,12 +62,8 @@ def instantiate_and_check(a, b, c, aexp, bexp, cexp):
 
 def test_cache_decor():
     utils.remove_path(CACHE_DIR)
-    instantiate_and_check(
-        1, 2, 3 if utils.rank0() else 4, 1, 2, 3 if utils.rank0() else 4
-    )
-    instantiate_and_check(
-        10, 20, 30 if utils.rank0() else 40, 1, 2, 3 if utils.rank0() else 4
-    )
+    instantiate_and_check(1, 2, 3 if utils.rank0() else 4, 1, 2, 3 if utils.rank0() else 4)
+    instantiate_and_check(10, 20, 30 if utils.rank0() else 40, 1, 2, 3 if utils.rank0() else 4)
     utils.remove_path(CACHE_DIR)
 
 
@@ -86,10 +82,7 @@ def test_logs_decorator():
 def test_heavy_duty_MPI_gather():
     def get_rank_matrix(dtype="i", n=3, m=5, p=68573):
         return np.array(
-            [
-                [(j + i * n + utils.rank() * n * m) % p for j in range(n)]
-                for i in range(m)
-            ],
+            [[(j + i * n + utils.rank() * n * m) % p for j in range(n)] for i in range(m)],
             dtype=dtype,
         )
 
@@ -230,15 +223,11 @@ def test_py_expr_eval():
     assert pyeval("foo * 2", foo=21) == 42
     assert pyeval("foo * 2", foo=[]) == [], "cannot handle Python list"
     assert pyeval("foo * 3", foo=[1]) == [1, 1, 1], "cannot handle Python list"
-    assert np.array_equal(
-        pyeval("foo * 2", foo=np.array([1, 21])), np.array([2, 42])
-    ), "cannot handle NumPy arrays"
-    assert np.array_equal(
-        pyeval("np.arange(6)"), np.arange(6)
-    ), "cannot call Numpy functions"
-    assert (
-        pyeval("math.ceil(41.2)") == 42
-    ), "cannot call routines from the 'math' standard module"
+    assert np.array_equal(pyeval("foo * 2", foo=np.array([1, 21])), np.array([2, 42])), (
+        "cannot handle NumPy arrays"
+    )
+    assert np.array_equal(pyeval("np.arange(6)"), np.arange(6)), "cannot call Numpy functions"
+    assert pyeval("math.ceil(41.2)") == 42, "cannot call routines from the 'math' standard module"
     assert pyeval("abs(-42)") == 42, "cannot call builtins from the standard library"
 
 

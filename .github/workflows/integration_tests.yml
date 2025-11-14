@@ -1,0 +1,278 @@
+# ### TODO fix integration tests
+
+# name: Unit tests
+
+# on:
+#   pull_request:
+#   push:
+#     branches: [main]
+#   workflow_dispatch:
+#     inputs:
+#       LIBSONATA_REPORT_BRANCH:
+#         description: 'libsonatareport branch to use'
+#         required: false
+#       LIBSONATA_BRANCH:
+#         description: 'libsonata branch to use'
+#         required: false
+#       NEURODAMUS_MODELS_BRANCH:
+#         description: 'neurodamus-models branch to use'
+#         required: false
+#       NEURODAMUS_BRANCH:
+#         description: 'neurodamus-models branch to use'
+#         required: false
+
+# env:
+#   LIBSONATA_REPORT_BRANCH:  ${{ inputs.LIBSONATA_REPORT_BRANCH || 'master' }}
+#   LIBSONATA_BRANCH:         ${{ inputs.LIBSONATA_BRANCH || 'master' }}
+#   NEURODAMUS_MODELS_BRANCH: ${{ inputs.NEURODAMUS_MODELS_BRANCH || 'main' }}
+#   NEURODAMUS_BRANCH:        ${{ inputs.NEURODAMUS_BRANCH || 'main' }}
+
+# jobs:
+#   build:
+#     runs-on: ubuntu-latest
+
+#     steps:
+#     - uses: actions/checkout@v4
+
+#     - name: Collect dependency SHAs
+#       run: |
+#         LIBSONATA_REPORT_SHA=$(git ls-remote https://github.com/openbraininstitute/libsonatareport.git ${LIBSONATA_REPORT_BRANCH} | cut -f1)
+#         LIBSONATA_SHA=$(git ls-remote https://github.com/openbraininstitute/libsonata.git ${LIBSONATA_BRANCH} | cut -f1)
+#         NEURODAMUS_MODELS_SHA=$(git ls-remote https://github.com/openbraininstitute/neurodamus-models.git ${NEURODAMUS_MODELS_BRANCH} | cut -f1)
+#         NEURODAMUS_SHA=$(git ls-remote https://github.com/openbraininstitute/neurodamus.git ${NEURODAMUS_BRANCH} | cut -f1)
+
+#         # Export to GitHub env for later steps
+#         echo "LIBSONATA_REPORT_SHA=$LIBSONATA_REPORT_SHA" >> $GITHUB_ENV
+#         echo "LIBSONATA_SHA=$LIBSONATA_SHA" >> $GITHUB_ENV
+#         echo "NEURODAMUS_MODELS_SHA=$NEURODAMUS_MODELS_SHA" >> $GITHUB_ENV
+#         echo "NEURODAMUS_SHA=$NEURODAMUS_SHA" >> $GITHUB_ENV
+
+#     - name: Dependency SHA recaps
+#       run: |
+#         echo "LIBSONATA_REPORT_BRANCH: $LIBSONATA_REPORT_BRANCH, $LIBSONATA_REPORT_SHA"
+#         echo "LIBSONATA_BRANCH: $LIBSONATA_BRANCH, $LIBSONATA_SHA"
+#         echo "NEURODAMUS_MODELS_BRANCH: $NEURODAMUS_MODELS_BRANCH, $NEURODAMUS_MODELS_SHA"
+#         echo "NEURODAMUS_BRANCH: $NEURODAMUS_BRANCH, $NEURODAMUS_SHA"
+    
+#     - name: Install ubuntu system dependencies
+#       run: |
+#         sudo apt-get update
+#         sudo apt-get install -y mpich libmpich-dev libhdf5-mpich-dev hdf5-tools flex libfl-dev bison ninja-build libreadline-dev
+
+#     - name: Setup python 3.11
+#       uses: actions/setup-python@v4
+#       with:
+#         python-version: 3.11
+
+#     - name: Cache python virtual env
+#       id: cache-venv
+#       uses: actions/cache@v3
+#       env:
+#         cache-name: cache-venv
+#       with:
+#         path: venv
+#         key: cache-venv
+
+#     - name: Setup venv
+#       if: steps.cache-venv.outputs.cache-hit != 'true'
+#       run: |
+#         python -m venv venv
+#         . ./venv/bin/activate
+#         python -m pip install --upgrade pip setuptools
+#         pip install cython numpy pytest
+
+#     - name: Activate venv
+#       run: |
+#         echo "${{ github.workspace }}/venv/bin" >> $GITHUB_PATH
+#         echo "VIRTUAL_ENV=${{ github.workspace }}/venv" >> $GITHUB_ENV
+
+#     - name: Build and install mpi4py
+#       if: steps.cache-venv.outputs.cache-hit != 'true'
+#       run: |
+#         MPICC=mpicc pip install --no-binary=mpi4py mpi4py
+    
+#     - name: Build and install h5py
+#       if: steps.cache-venv.outputs.cache-hit != 'true'
+#       run: |
+#         export HDF5_INCLUDEDIR=/usr/include/hdf5/mpich
+#         export HDF5_LIBDIR=/usr/lib/x86_64-linux-gnu/hdf5/mpich
+#         # Upgrade setuptools again, to avoid build error from `project.license`
+#         # Neuron installed older setuptools but it doesn't work for h5py
+#         CC="mpicc" HDF5_MPI="ON" HDF5_INCLUDEDIR=$HDF5_INCLUDEDIR HDF5_LIBDIR=$HDF5_LIBDIR \
+#           pip install --no-cache-dir --no-binary=h5py h5py --no-build-isolation
+
+#     - name: Install Multiscale Run
+#       run: |
+#         pip install .
+
+#     - name: Run unit tests
+#       run: |
+#         pytest tests/unit
+
+    
+
+    # - name: Install libsonata from source
+    #   if: steps.cache-venv.outputs.cache-hit != 'true'
+    #   run: |
+    #     CC=mpicc CXX=mpic++ pip install git+https://github.com/openbraininstitute/libsonata@${{ env.LIBSONATA_BRANCH }}
+
+    # - name: Cache libsonatareport
+    #   id: cache-libsonatareport
+    #   uses: actions/cache@v3
+    #   env:
+    #     cache-name: cache-libsonatareport
+    #   with:
+    #     path: libsonatareport
+    #     key: libsonatareport-${{ env.LIBSONATA_REPORT_SHA }}
+
+    # - name: Install libsonatareport
+    #   if: steps.cache-libsonatareport.outputs.cache-hit != 'true'
+    #   run: |
+    #     git clone --branch="${{ env.LIBSONATA_REPORT_BRANCH}}" https://github.com/openbraininstitute/libsonatareport.git --recursive --depth=1
+    #     cd libsonatareport
+    #     mkdir build && cd build
+    #     cmake -DCMAKE_INSTALL_PREFIX=$(pwd)/install -DCMAKE_BUILD_TYPE=Release -DSONATA_REPORT_ENABLE_SUBMODULES=ON -DSONATA_REPORT_ENABLE_MPI=ON ..
+    #     cmake --build . --parallel
+    #     cmake --build . --target install
+
+    # - name: Set libsonatareport env variables
+    #   run: |
+    #     echo "SONATAREPORT_DIR=$(pwd)/libsonatareport/build/install" >> $GITHUB_ENV
+
+    # - name: Install neurodamus from source
+    #   if: steps.cache-venv.outputs.cache-hit != 'true'
+    #   run: |
+    #     CC=mpicc CXX=mpic++ pip install "neurodamus[full] @ git+https://github.com/openbraininstitute/neurodamus@${{ env.NEURODAMUS_BRANCH }}"
+
+    # - name: Build neocortex models
+    #   run: |
+    #     # Clone neurodamus-models repository
+    #     git clone --branch=${{ env.NEURODAMUS_MODELS_BRANCH }} https://github.com/openbraininstitute/neurodamus-models.git
+
+    #     # Build neocortex model
+    #     export CC=$(which mpicc)
+    #     export CXX=$(which mpicxx)
+    #     DATADIR=$(python -c "import neurodamus; from pathlib import Path; print(Path(neurodamus.__file__).parent / 'data')")
+    #     cmake -B neurodamus-models/build -S neurodamus-models/ \
+    #       -DPython_EXECUTABLE=$(which python) \
+    #       -DCMAKE_INSTALL_PREFIX=$PWD/neurodamus-models/install \
+    #       -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=ON \
+    #       -DCMAKE_PREFIX_PATH=$SONATAREPORT_DIR \
+    #       -DNEURODAMUS_CORE_DIR=${DATADIR} \
+    #       -DNEURODAMUS_MECHANISMS=neocortex \
+    #       -DNEURODAMUS_ENABLE_CORENEURON=OFF \
+    #       -DNEURODAMUS_NCX_V5=ON \
+    #       -DNEURODAMUS_NCX_METABOLISM=ON \
+    #       -DNEURODAMUS_NCX_NGV=ON
+
+    #     cmake --build neurodamus-models/build
+    #     cmake --install neurodamus-models/build
+
+
+    # - name: Set neocortex models env variables
+    #   run: |
+    #     # Save for later steps
+    #     echo "NEURODAMUS_NEOCORTEX_ROOT=$(pwd)/neurodamus-models/install" >> $GITHUB_ENV
+    #     echo "HOC_LIBRARY_PATH=$NEURODAMUS_NEOCORTEX_ROOT/share/neurodamus_neocortex/hoc" >> $GITHUB_ENV
+    #     echo "CORENEURONLIB=$NEURODAMUS_NEOCORTEX_ROOT/lib/libcorenrnmech.so" >> $GITHUB_ENV
+    #     echo "NRNMECH_LIB_PATH=$NEURODAMUS_NEOCORTEX_ROOT/lib/libnrnmech.so" >> $GITHUB_ENV
+    #     echo "NEURODAMUS_NEOCORTEX_ROOT=$(pwd)/neurodamus-models/install" >> $GITHUB_ENV
+    #     echo "LIBSONATA_ZERO_BASED_GIDS=1" >> $GITHUB_ENV
+
+    # - name: Setup Julia
+    #   uses: julia-actions/setup-julia@v1
+    #   with:
+    #     version: "1"        # latest stable 1.x
+    #     arch: x64
+
+    # - name: Cache Julia environment
+    #   id: cache-julia
+    #   uses: actions/cache@v3
+    #   with:
+    #     path: juliaenv
+    #     key: cache-julia
+
+    # - name: Set Julia environment variables
+    #   run: |
+    #     JULIAENV_DIR="$PWD/juliaenv"
+    #     echo "PYTHON=$(which python3)" >> $GITHUB_ENV
+    #     echo "JULIA_NUM_THREADS=1" >> $GITHUB_ENV
+    #     echo "JULIA_DEPOT_PATH=$JULIAENV_DIR" >> $GITHUB_ENV
+    #     echo "JULIAUP_DEPOT_PATH=$JULIAENV_DIR" >> $GITHUB_ENV
+    #     echo "JULIA_PROJECT=$JULIAENV_DIR" >> $GITHUB_ENV
+    #     echo "PATH=$HOME/.juliaup/bin:$PATH" >> $GITHUB_ENV
+
+    # - name: Julia env recap
+    #   run: |
+    #     echo PYTHON=$PYTHON
+    #     echo JULIA_NUM_THREADS=$JULIA_NUM_THREADS
+    #     echo JULIA_DEPOT_PATH=$JULIA_DEPOT_PATH
+    #     echo JULIAUP_DEPOT_PATH=$JULIAUP_DEPOT_PATH
+    #     echo JULIA_PROJECT=$JULIA_PROJECT
+    #     echo PATH=$PATH
+
+    # - name: Install Julia packages
+    #   if: steps.cache-julia.outputs.cache-hit != 'true'
+    #   run: |
+    #     mkdir -p juliaenv
+    #     echo "Using JULIA_PROJECT=$JULIA_PROJECT"
+    #     julia -e '
+    #       using Pkg
+    #       Pkg.activate(ENV["JULIA_PROJECT"])
+    #       Pkg.add(["IJulia","PyCall","PythonCall","DifferentialEquations"])
+    #       Pkg.instantiate()
+    #       Pkg.precompile()
+    #     '
+
+    # - name: check julia
+    #   run: |
+    #     ls .
+    #     echo "----"
+    #     ls juliaenv
+    #     echo "----"
+    #     julia -e 'println(Base.active_project())'
+
+    #     echo "$JULIA_PROJECT"
+    #     echo "----"
+    #     julia -e 'print("JULIA_PROJECT=",get(ENV,"JULIA_PROJECT","none"))'
+    #     echo "----"
+    #     julia -e 'println.(("PROJECT=", Base.current_project(), "DEPOT=", joinpath.(DEPOT_PATH)...))'
+    #     echo "----"
+    #     ACTIVE=$(julia -e 'print(Base.current_project())')
+    #     echo "Active Julia project: $ACTIVE"
+
+
+
+
+    # - name: Install multiscale run
+    #   run: |
+    #     pip install .
+
+    # - name: Run Tiny CI integration Test
+    #   run: |
+    #     multiscale-run init test_tiny_CI --circuit=tiny_CI
+    #     cd test_tiny_CI
+    #     source ../.ci/setup.sh
+    #     download_tiny_CI_neurodamus_data
+
+    #     ls ..
+    #     echo "----"
+    #     ls ../juliaenv
+    #     echo "----"
+    #     julia -e 'println(Base.active_project())'
+
+    #     echo "$JULIA_PROJECT"
+    #     echo "----"
+    #     julia -e 'println.(("PROJECT=", Base.current_project(), "DEPOT=", joinpath.(DEPOT_PATH)...))'
+    #     echo "----"
+    #     ACTIVE=$(julia -e 'print(Base.current_project())')
+    #     echo "Active Julia project: $ACTIVE"
+
+    #     # multiscale-run compute
+
+
+
+      #   - name: Print environment
+      # run: |
+      #   echo "---- ENVIRONMENT VARIABLES ----"
+      #   printenv

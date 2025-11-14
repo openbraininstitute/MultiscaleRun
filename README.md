@@ -34,7 +34,7 @@ The script does this:
 
 If a folder is present (`spackenv`, `venv`, `juliaenv`) the script skips that installation step assuming that is already done. If any of the folders are missing, the script redoes the setup. 
 
-The environemnt is still set as it is needed. 
+The environment is still set as it is needed. 
 
 You can always modify them and recall `setup.sh`. It will not override your changes. 
 

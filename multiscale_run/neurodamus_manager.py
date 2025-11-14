@@ -39,9 +39,7 @@ class MsrNeurodamusManager:
         self.num_neurons_per_rank = utils.comm().gather(len(self.ncs), root=0)
         self.init_ncs_len = len(self.ncs)
         self.acs = np.array([nc for nc in self.astrocyte_manager.cells])
-        self.nc_weights = {
-            k: self._cumulate_nc_sec_quantity(k) for k in ["volume", "area"]
-        }
+        self.nc_weights = {k: self._cumulate_nc_sec_quantity(k) for k in ["volume", "area"]}
         self.removed_gids = {}
 
     def gids(self, raw=False):
@@ -61,8 +59,7 @@ class MsrNeurodamusManager:
         self.neuron_manager = [
             i
             for i in self.ndamus.circuits.all_node_managers()
-            if isinstance(i, neurodamus.cell_distributor.CellDistributor)
-            and i.total_cells > 0
+            if isinstance(i, neurodamus.cell_distributor.CellDistributor) and i.total_cells > 0
         ][0]
         self.astrocyte_manager = [
             i
@@ -175,8 +172,7 @@ class MsrNeurodamusManager:
                 return np.transpose([xp_seg, yp_seg, zp_seg])
 
             ll = [
-                [sec.arc3d(i) / sec.L, sec.x3d(i), sec.y3d(i), sec.z3d(i)]
-                for i in range(sec.n3d())
+                [sec.arc3d(i) / sec.L, sec.x3d(i), sec.y3d(i), sec.z3d(i)] for i in range(sec.n3d())
             ]
             ans = get_local_seg_extremes(
                 sec.nseg,
@@ -208,8 +204,7 @@ class MsrNeurodamusManager:
             sparse.csr_matrix: The nsecXnsegMat matrix.
         """
         segl = [
-            [np.linalg.norm(sec[i, :] - sec[i + 1, :]) for i in range(len(sec) - 1)]
-            for sec in pts
+            [np.linalg.norm(sec[i, :] - sec[i + 1, :]) for i in range(len(sec) - 1)] for sec in pts
         ]
         secl = [sum(i) for i in segl]
 
@@ -259,8 +254,7 @@ class MsrNeurodamusManager:
                 for isec, _ in enumerate(self.gen_secs(nc=nc)):
                     itot += 1
                     yield (
-                        self.nc_weights["volume"][1][inc][isec]
-                        / self.nc_weights["volume"][0][inc],
+                        self.nc_weights["volume"][1][inc][isec] / self.nc_weights["volume"][0][inc],
                         inc,
                         itot - 1,
                     )
@@ -303,9 +297,7 @@ class MsrNeurodamusManager:
         num_neurons = self.num_neurons_per_rank
 
         if utils.rank0():
-            working_gids = [
-                total - len(broken) for broken, total in zip(removed_gids, num_neurons)
-            ]
+            working_gids = [total - len(broken) for broken, total in zip(removed_gids, num_neurons)]
 
             def rr(t, w):
                 r = f"{w}/{t}"
@@ -315,16 +307,12 @@ class MsrNeurodamusManager:
                     return f"\033[1;31m{r}\033[m"
 
             ratios = [
-                rr(total, working)
-                for working, total in zip(working_gids, num_neurons)
-                if total
+                rr(total, working) for working, total in zip(working_gids, num_neurons) if total
             ]
 
             logging.info(f"Working GIDs to Total GIDs Ratio:\n{', '.join(ratios)}")
 
-            any_failed = any(
-                len(removal_reasons) > 0 for removal_reasons in removed_gids
-            )
+            any_failed = any(len(removal_reasons) > 0 for removal_reasons in removed_gids)
             if any_failed:
                 logging.info("GIDs that failed:")
                 for r, removal_reasons in enumerate(removed_gids):
@@ -352,9 +340,7 @@ class MsrNeurodamusManager:
             np.ndarray: An array containing the variable values per segment weighted by the specified factor.
         """
         if weight is not None and weight not in self.nc_weights:
-            raise KeyError(
-                f"Unknown weight: {weight}. Possible keys: {', '.join(self.nc_weights)}"
-            )
+            raise KeyError(f"Unknown weight: {weight}. Possible keys: {', '.join(self.nc_weights)}")
 
         def f(seg):
             w = 1
@@ -447,16 +433,12 @@ class MsrNeurodamusManager:
         simulation_config.json is expected to be in the folder.
         """
 
-        simulation_config = libsonata.SimulationConfig.from_file(
-            "simulation_config.json"
-        )
+        simulation_config = libsonata.SimulationConfig.from_file("simulation_config.json")
 
         circuit_config = libsonata.CircuitConfig.from_file(simulation_config.network)
         if circuit_config.node_sets_path:
             node_sets = libsonata.NodeSets.from_file(circuit_config.node_sets_path)
-            node_sets.update(
-                libsonata.NodeSets.from_file(simulation_config.node_sets_file)
-            )
+            node_sets.update(libsonata.NodeSets.from_file(simulation_config.node_sets_file))
         else:
             node_sets = libsonata.NodeSets.from_file(simulation_config.node_sets_file)
 

@@ -14,8 +14,6 @@ import platform
 import shutil
 import stat
 import subprocess
-import sys
-import tempfile
 import textwrap
 import warnings
 from pathlib import Path
@@ -23,11 +21,10 @@ from pathlib import Path
 import scipy.sparse
 from nbconvert.nbconvertapp import main as NbConvertApp
 
-from . import __version__, utils
+from . import __version__
 from .config import DEFAULT_CIRCUIT, NAMED_CIRCUITS
 from .simulation import MsrSimulation
-from .templates import (JULIA_ENV, MSR_CONFIG_JSON, MSR_POSTPROC,
-                        SBATCH_TEMPLATE)
+from .templates import MSR_CONFIG_JSON, MSR_POSTPROC, SBATCH_TEMPLATE
 from .utils import MsrException, copy_symlinks, merge_dicts, pushd
 
 
@@ -44,31 +41,6 @@ def _cli_logger():
 
 LOGGER = _cli_logger()
 del _cli_logger
-
-
-def julia_env(func):
-    """Decorator to define the required Julia environment variables"""
-
-    @functools.wraps(func)
-    def wrap(**kwargs):
-        if Path(".julia").exists():
-            utils.print_once(f"use local .julia")
-            julia_depot = Path(".julia")
-            os.environ.setdefault("JULIA_DEPOT_PATH", str(julia_depot.resolve()))
-            os.environ.setdefault("JULIAUP_DEPOT_PATH", str(julia_depot.resolve()))
-
-        # Force JULIA_NUM_THREADS to 1
-        os.environ["JULIA_NUM_THREADS"] = "1"
-
-        utils.print_once(
-            f"JULIA_DEPOT_PATH = {os.environ.get('JULIA_DEPOT_PATH', 'Not set')}"
-        )
-        utils.print_once(
-            f"JULIAUP_DEPOT_PATH = {os.environ.get('JULIAUP_DEPOT_PATH', 'Not set')}"
-        )
-        return func(**kwargs)
-
-    return wrap
 
 
 def command(func):
@@ -88,44 +60,6 @@ def command(func):
     return wrap
 
 
-def julia_cmd(*instructions):
-    """Execute a set of Julia instructions in a dedicated Julia process"""
-    julia_cmds = ["using Pkg"]
-    for instruction in instructions:
-        julia_cmds.append(instruction)
-    cmd = ["julia", "-e", ";".join(julia_cmds)]
-
-    def print_os_var(var):
-        LOGGER.warning(f"{var}: {os.environ.get(var, 'NOT_FOUND')}")
-
-    print_os_var("JULIA_DEPOT_PATH")
-    print_os_var("JULIAUP_DEPOT_PATH")
-
-    LOGGER.warning(f"Running the command '{cmd}' in {Path.cwd()}")
-    subprocess.check_call(cmd)
-
-
-def julia_pkg(command, package):
-    """Execute a Julia Pkg command in a dedicated process
-
-    Args:
-      command: the Pkg function
-      package: the package to install, either as a string or a dictionary
-    """
-    instruction = f'Pkg.{command}("{package}")'
-    julia_cmd(instruction)
-
-
-@command
-def julia(args=None, **kwargs):
-    """Run Julia within the simulation environment"""
-    command = ["julia"]
-    if args is not None:
-        command += args
-
-    subprocess.check_call(command)
-
-
 @command
 def init(directory, circuit, check=True, force=False, metabolism="standard"):
     """Setup a new simulation"""
@@ -143,9 +77,7 @@ def init(directory, circuit, check=True, force=False, metabolism="standard"):
     circuit_def = NAMED_CIRCUITS[circuit]
 
     sbatch_parameters = copy.copy(circuit_def.sbatch_parameters)
-    loaded_modules = filter(
-        lambda s: len(s) > 0, os.environ.get("LOADEDMODULES", "").split(":")
-    )
+    loaded_modules = filter(lambda s: len(s) > 0, os.environ.get("LOADEDMODULES", "").split(":"))
     sbatch_parameters["loaded_modules"] = loaded_modules
     SBATCH_TEMPLATE.stream(sbatch_parameters).dump("simulation.sbatch")
     shutil.copy(MSR_POSTPROC, MSR_POSTPROC.name)
@@ -158,20 +90,16 @@ def init(directory, circuit, check=True, force=False, metabolism="standard"):
 
     circuit_config = circuit_def.json()
     if metabolism != "standard":
-        p_split = circuit_config["multiscale_run"]["metabolism"][
-            "julia_code_path"
-        ].rsplit(".", 1)
-        rd.setdefault("metabolism", {})[
-            "julia_code_path"
-        ] = f"{p_split[0]}_{metabolism}.{p_split[1]}"
+        p_split = circuit_config["multiscale_run"]["metabolism"]["julia_code_path"].rsplit(".", 1)
+        rd.setdefault("metabolism", {})["julia_code_path"] = (
+            f"{p_split[0]}_{metabolism}.{p_split[1]}"
+        )
 
     circuit_config = merge_dicts(child={"multiscale_run": rd}, parent=circuit_config)
     with open(MSR_CONFIG_JSON, "w") as ostr:
         json.dump(circuit_config, ostr, indent=4)
 
-    LOGGER.warning(
-        "Preparation of the simulation configuration and environment succeeded"
-    )
+    LOGGER.warning("Preparation of the simulation configuration and environment succeeded")
     LOGGER.warning(
         "The generated setup is already ready to compute "
         "with the command 'multiscale-run compute' or via the "
@@ -179,16 +107,13 @@ def init(directory, circuit, check=True, force=False, metabolism="standard"):
         "the JSON configuration files at will!"
     )
 
-    LOGGER.warning(
-        f'Set up with circuit: "{circuit}" and metabolism type: "{metabolism}"'
-    )
+    LOGGER.warning(f'Set up with circuit: "{circuit}" and metabolism type: "{metabolism}"')
     folder_path = os.path.abspath(directory)
     if os.path.exists(folder_path) and os.path.isdir(folder_path):
         LOGGER.warning(f"Folder: {os.path.abspath(directory)}")
         content = os.listdir(folder_path)
         LOGGER.warning(
-            f"Contents of the folder {folder_path}:\n"
-            + "\n".join(f"- {item}" for item in content)
+            f"Contents of the folder {folder_path}:\n" + "\n".join(f"- {item}" for item in content)
         )
     else:
         LOGGER.warning(f"Directory: {directory}")
@@ -223,7 +148,7 @@ def check(**kwargs):
         LOGGER.warning("The simulation environment looks sane")
     else:
         LOGGER.warning("Inconsistencies have been spotted")
-        sys.exit(1)
+        MsrException("Environment sanity check failed")
 
 
 @command
@@ -237,162 +162,8 @@ def post_processing(notebook: str, **kwargs) -> Path:
 
     conf = MsrConfig()
     results = str(conf.output.output_dir)
-    NbConvertApp(
-        ["--execute", "--to", "html", "--no-input", f"--output-dir={results}", notebook]
-    )
+    NbConvertApp(["--execute", "--to", "html", "--no-input", f"--output-dir={results}", notebook])
     return Path(results) / (Path(notebook).stem + ".html")
-
-
-def spack(*args, log=True):
-    spack_executable = Path(os.environ["SPACK_ROOT"]) / "bin" / "spack"
-    command = [str(spack_executable), "--color=never"] + list(args)
-    env = os.environ.copy()
-    # release space in the command-line to prevent saturation
-    env.pop("PYTHONPATH", None)
-    # run command outside any spack environment
-    env.pop("SPACK_ENV", None)
-    env.pop("SPACK_ENV_VENV", None)
-    # remove it so that spack may export the correct path
-    env.pop("HOC_LIBRARY_PATH", None)
-    if log:
-        print(" ".join(command))
-    return subprocess.check_output(command, encoding="utf-8", env=env)
-
-
-@command
-def virtualenv(venv=".venv", spec="py-multiscale-run@develop", **kwargs):
-    """Create a Python virtual environment to ease development of multiscale_run Python package
-
-    Basically:
-    1. capture output of `spack load --only dependencies --sh py-multiscale-run@develop`
-    It contains PATH and PYTHON required to have everything required by multiscale_run but multiscale_run itself
-    2. create a Python virtualenv in this context
-    3. patch the virtualenv script `bin/activate` with shell script retrived (1)
-    """
-    # ensure the command is executed from multiscale_run working copy
-    git_clone_error = MsrException(
-        "this command must be executed from the root directory of multiscale-run git working-copy"
-    )
-    if not Path(".git").is_dir():
-        raise git_clone_error
-    pyproject_toml = Path("pyproject.toml")
-    if not pyproject_toml.is_file():
-        raise git_clone_error
-    with open(pyproject_toml) as istr:
-        content = istr.read()
-        if 'name = "multiscale_run"' not in content:
-            raise git_clone_error
-
-    # ensure spack is loaded
-    if "SPACK_ROOT" not in os.environ:
-        if JULIA_ENV.exists():
-            logging.warning(
-                textwrap.dedent(
-                    """\
-                Cannot locate spack installation. The module is available on BB5:
-
-                    module load unstable spack
-            """
-                )
-            )
-        raise MsrException("Cannot locate spack installation")
-
-    spec_out = spack("spec", "--very-long", "--install-status", spec)
-    # read output of `spack spec ...` command to extract:
-    # - whether the spec is installed or not
-    # - the hash of the spec
-    sep = "\nConcretized\n--------------------------------\n"
-    offset = spec_out.find(sep)
-    assert offset != -1
-    spec_out = spec_out[offset + len(sep) :]
-    spec_out = spec_out.split("\n", 1)[0]
-    pkg_name = spec.split("@", 1)[0]
-    assert pkg_name in spec_out
-    installed = spec_out.startswith("[+]")
-    spec_hash = spec_out[3:].split()[0]
-    # ------------------------------------------------------
-    if not installed:
-        spack("install", spec)
-    dependencies_env = spack("load", "--only", "dependencies", "--sh", f"/{spec_hash}")
-
-    # Generate a shell-script to create the virtualenv
-    fd, installer_path = tempfile.mkstemp(
-        suffix=".sh", prefix="msr-venv-installer", text=True
-    )
-    os.write(fd, b"#!/bin/sh\n")
-    os.write(fd, dependencies_env.encode("utf-8"))
-    spack_env = os.environ.get("SPACK_ENV")
-    if spack_env:
-        cleanup_environment = textwrap.dedent(
-            f"""\
-            # wipe spack environment from PATH and PYTHONPATH
-            export PATH=$(echo $PATH | sed -e "s@{spack_env}[^:]*@@g")
-            export PYTHONPATH=$(echo $PYTHONPATH | sed -e "s@{spack_env}[^:]*@@g")
-        """
-        )
-        os.write(fd, cleanup_environment.encode("utf-8"))
-    os.write(
-        fd,
-        textwrap.dedent(
-            f"""\
-        # remove previous references of multiscale-run in PYTHONPATH
-        export PYTHONPATH=$(echo $PYTHONPATH | sed -e "s@/[^:]*multiscale-run[^:]*@@g")
-        # cleanup previous build artifacts
-        rm -rf build multiscale_run.egg-info
-        python -m venv {venv}
-        {venv}/bin/python -m pip --disable-pip-version-check install --editable .
-    """
-        ).encode("utf-8"),
-    )
-    os.close(fd)
-    st = os.stat(installer_path)
-    os.chmod(installer_path, st.st_mode | stat.S_IEXEC)
-    print("Executing shell script: ", installer_path)
-    subprocess.check_call(installer_path)
-
-    # patch the virtualenv 'activate' script
-    activate_f = Path(venv) / "bin" / "activate"
-    with activate_f.open() as istr:
-        activate_content = istr.read()
-        pos = activate_content.find("# This file must be used with")
-        if pos != 1:
-            activate_content = activate_content[pos:]
-    with activate_f.open("w") as ostr:
-        ostr.write(
-            textwrap.dedent(
-                """\
-            _LAST_MODIFIED=$(stat -c "%Y" ${BASH_SOURCE[0]})
-            _NOW=$(date +%s)
-            if [ $(($_NOW - $_LAST_MODIFIED)) -gt 14515200 ]; then
-                >&2 echo "WARNING: This virtualenv is more than 1 week old."
-                >&2 echo "WARNING: The spack packages it relies on may be out of date."
-                >&2 echo "WARNING: You may consider removing it and creating a fresh one with the 'multiscale-run virtualenv' command."
-            fi
-            unset _LAST_MODIFIED _NOW
-        """
-            )
-        )
-        ostr.write(dependencies_env)
-        if spack_env:
-            ostr.write(cleanup_environment)
-        ostr.write(
-            'export PYTHONPATH=$(echo $PYTHONPATH | sed -e "s@/[^:]*multiscale-run[^:]*@@g")\n'
-        )
-        ostr.write(activate_content)
-    print(
-        textwrap.dedent(
-            f"""\
-
-        Setup is successful.
-        multiscale_run has been installed in editable mode in the virtualenv {Path(venv).resolve()}
-        The virtualenv has been patched to take into account the spack package dependencies.
-        To have multiscale-run executable loaded in the PATH, simply execute the shell command:
-
-            source {Path(venv).resolve()}/bin/activate
-     """
-        ),
-        file=sys.stderr,
-    )
 
 
 def _check_local_neuron_mechanisms():
@@ -407,18 +178,13 @@ def _check_local_neuron_mechanisms():
     if not mod_files.exists():
         return sane
 
-    mod_files_mtime = max(
-        entry.stat()[stat.ST_MTIME] for entry in os.scandir(mod_files)
-    )
+    mod_files_mtime = max(entry.stat()[stat.ST_MTIME] for entry in os.scandir(mod_files))
 
     for ext in [".so", ".dll", ".dylib"]:
         nrn_mechanisms = Path(platform.machine()) / ("libnrnmech" + ext)
         if nrn_mechanisms.exists():
             break
-    if (
-        not nrn_mechanisms.exists()
-        or nrn_mechanisms.stat()[stat.ST_MTIME] < mod_files_mtime
-    ):
+    if not nrn_mechanisms.exists() or nrn_mechanisms.stat()[stat.ST_MTIME] < mod_files_mtime:
         sane = False
         LOGGER.warning(
             textwrap.dedent(
@@ -462,14 +228,10 @@ def edit_mod_files(**kwargs):
 
     """
     if Path("mod").exists():
-        raise MsrException(
-            "Directory 'mod' already exists. Remove it first to reinitialize it"
-        )
+        raise MsrException("Directory 'mod' already exists. Remove it first to reinitialize it")
 
     if (ndam_root := os.environ.get("NEURODAMUS_NEOCORTEX_ROOT")) is None:
-        raise MsrException(
-            "Environment variable 'NEURODAMUS_NEOCORTEX_ROOT' is missing"
-        )
+        raise MsrException("Environment variable 'NEURODAMUS_NEOCORTEX_ROOT' is missing")
     if os.environ.get("NRNMECH_LIB_PATH") is None:
         raise MsrException("Environment variable 'NRNMECH_LIB_PATH' is missing")
     ndam_mod = Path(ndam_root) / "share" / "neurodamus_neocortex" / "mod"
@@ -479,16 +241,7 @@ def edit_mod_files(**kwargs):
     print("copying neocortex mod files library locally")
     shutil.copytree(ndam_mod, "mod")
     print("building local mod files")
-    intel_compiler = (
-        subprocess.run(
-            "readelf -p .comment $NRNMECH_LIB_PATH | grep -q 'Intel(R) oneAPI'",
-            shell=True,
-        ).returncode
-        == 0
-    )
     build_cmd = f"build_neurodamus.sh '{ndam_mod}' --only-neuron"
-    if JULIA_ENV.exists() and intel_compiler:
-        build_cmd = "module load unstable intel-oneapi-compilers ; " + build_cmd
     subprocess.check_call(build_cmd, shell=True)
     nrn_mechanims = (Path(platform.machine()) / "libnrnmech.so").resolve()
     if not nrn_mechanims.exists():
@@ -501,9 +254,7 @@ def edit_mod_files(**kwargs):
         with sbatch_script.open() as istr:
             content = istr.read()
         if "export NRNMECH_LIB_PATH" not in content:
-            print(
-                f"Patching {sbatch_script} to take the new Neuron mechanisms into account"
-            )
+            print(f"Patching {sbatch_script} to take the new Neuron mechanisms into account")
             content = content.replace(
                 "-----\n\n",
                 f"-----\n\n# Use local Neuron mechanisms\nexport NRNMECH_LIB_PATH={nrn_mechanims}\n\n",
@@ -591,30 +342,6 @@ def argument_parser():
     )
     parser_postproc.add_argument("directory", nargs="?")
 
-    parser_julia = subparsers.add_parser("julia", help=julia.__argparse_help__)
-    parser_julia.set_defaults(func=julia)
-    parser_julia.add_argument(
-        "args",
-        nargs="*",
-        metavar="ARGS",
-        help="Optional arguments passed to Julia executable",
-    )
-
-    parser_virtualenv = subparsers.add_parser(
-        "virtualenv", help=virtualenv.__argparse_help__
-    )
-    parser_virtualenv.set_defaults(func=virtualenv)
-    parser_virtualenv.add_argument(
-        "--venv",
-        default=".venv",
-        help="Name of the virtual environment. Default is %(default)s",
-    )
-    parser_virtualenv.add_argument(
-        "--spec",
-        default="py-multiscale-run@develop",
-        help="Spack spec to determine the list of dependencies to install",
-    )
-
     parser_edit_mod_files = subparsers.add_parser(
         "edit-mod-files", help=edit_mod_files.__argparse_help__
     )
@@ -654,6 +381,6 @@ def main(**kwargs):
             if size() > 1:
                 comm().Abort(errorcode=1)
             else:
-                sys.exit(1)
+                raise MsrException(str(e))
     else:
         ap.error("a subcommand is required.")
