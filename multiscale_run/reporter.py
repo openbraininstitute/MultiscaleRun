@@ -73,7 +73,7 @@ class MsrReporter:
 
                 for rep in reps.values():
                     if manager != "bloodflow":
-                        idxs = [i - 1 for i in self.all_gids]
+                        idxs = self.all_gids
                     else:
                         idxs = (
                             rep.src_get_kwargs.idxs
@@ -127,7 +127,7 @@ class MsrReporter:
                     )
                 else:
                     idxs = np.array(
-                        [self.gid2pos[gid] for gid in managers["neurodamus"].gids()]
+                        [self.gid2pos[gid] for gid in managers["neurodamus"].gids(raw=True)]
                     )
                 path = self._file_path(rep.file_name)
                 if manager_name == "bloodflow":

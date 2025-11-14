@@ -137,7 +137,7 @@ class MsrSimulation:
 
             self.rep = reporter.MsrReporter(
                 config=self.conf,
-                gids=self.neurodamus_manager.gids(),
+                gids=self.neurodamus_manager.gids(raw=True),
                 n_bf_segs=(
                     self.managers["bloodflow"].n_segs
                     if self.conf.is_bloodflow_active()
