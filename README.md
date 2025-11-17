@@ -61,6 +61,15 @@ jupyter lab
 
 open `postproc.ipynb` and run. By default it presents all the traces for the gids `[0, 1, 2]`. The notebook should be self-explainatory and can be changed at will. 
 
+#### Unit tests
+
+Locally, we use tox to run the unit tests:
+
+```bash
+pip install tox
+tox -e unit
+```
+
 ## Authors
 
 Polina Shichkova, Alessandro Cattabiani, Christos Kotsalos, and Tristan Carel
