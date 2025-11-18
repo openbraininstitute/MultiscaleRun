@@ -215,6 +215,11 @@ class Ephys:
     gNan: float = 0.0136
     gNag: float = 0.0061
     gKpas: float = 0.04  # 0.05 #0.2035  ############
+    gKirV: float = 6.75 * gKpas  # 0.1*2* #7*gKpas
+    gKirS: float = 40 * gKpas  # 4*gKpas # 0.1* #40*gKpas
+    gleakA: float = gKpas  # 0.1*
+    gBK: float = 54.0 * gKpas  # 200. ##1000*gKpas # 200. #0.2 # 200pS  # !!!!!!!!!!!!
+    gTRP: float = 10 * gKpas  # w  #11.5*gKpas #10*gKpas worked #13.5*gKpas  # 1e-5* !!!!!!!!!!!!
     kPumpg: float = 4.5e-07
     vPumpg0: float = 0.0687
 
@@ -326,15 +331,6 @@ class Ephys:
     tauG: float = 2.0  # 2.7
     KsynGlutPulse: float = 0.4  # 8.8
 
-    def __post_init__(self):
-        self.gKirV: float = 6.75 * self.gKpas  # 0.1*2* #7*gKpas
-        self.gKirS: float = 40 * self.gKpas  # 4*gKpas # 0.1* #40*gKpas
-        self.gleakA: float = self.gKpas  # 0.1*
-        self.gBK: float = 54.0 * self.gKpas  # 200. ##1000*gKpas # 200. #0.2 # 200pS  # !!!!!!!!!!!!
-        self.gTRP: float = (
-            10 * self.gKpas
-        )  # w  #11.5*gKpas #10*gKpas worked #13.5*gKpas  # 1e-5* !!!!!!!!!!!!
-
 
 @dataclass
 class ETC:
@@ -356,6 +352,7 @@ class ETC:
     etcF: float = 0.096484  # kJ mol^{-1} mV^{-1}
     etcR: float = 8314e-6  # Universal gas constant (kJ * mol^{-1} * K^{-1}]
     etcT: float = 273.15 + 37  # Temperature (K), 37 degree
+    etcRT: float = etcR * etcT  # kJ  mol^{-1}
 
     dG_C1o: float = -69.37  # kJ mol^{-1}
     dG_C3o: float = -32.53  # kJ mol^{-1}
@@ -378,6 +375,8 @@ class ETC:
         1 / 0.0575
     )  # Volume fraction cytosol/mitochondria # 0.0575 is mito vol fraction from supp of Santuy2018 doi: 10.1093/cercor/bhy159 #1/0.06 0.06 is mitochondrial fraction Ward 2007
     W_m: float = 0.143 / 0.20  # mitochondrial water space (ml water / ml mito]
+    W_x: float = 0.9 * W_m  # Matrix water space (ml water / ml mito]
+    W_i: float = 0.1 * W_m  # IM water space (ml water / ml mito]
 
     # Potassium-Hydrogen-Antiport
     x_KH: float = 2.9802e7  # x_KH      # K+ / H+ antiporter activity
@@ -546,11 +545,6 @@ class ETC:
     K_DT_a: float = 0.00194323827864375  # 0.001855689326651793 #0.000192             # K_DT      # Mg/ATP binding constant (M)
     K_DD_a: float = 0.000328048467890892  # 0.00036972016989755054 #347e-6              # K_DD      # Mg/ADP binding constant (M)
 
-    def __post_init__(self):
-        self.etcRT: float = self.etcR * self.etcT  # kJ  mol^{-1}
-        self.W_x: float = 0.9 * self.W_m  # Matrix water space (ml water / ml mito]
-        self.W_i: float = 0.1 * self.W_m  # IM water space (ml water / ml mito]
-
 
 @dataclass
 class Gaba:
@@ -590,6 +584,7 @@ class GeneralParameters:
     eto_n: float = 0.45  # Jolivet2015 # 0.4 # volume fraction neuron Calvetti2018      #
     eto_a: float = 0.25  # 0.3 # volume fraction astrocyte Calvetti2018   # 0.25 Jolivet2015
     eto_ecs: float = 0.2  # 0.3 # volume fraction ecs Calvetti2018       # 0.2 Jolivet2015
+    beta: float = eto_n / eto_ecs  # 1.33 # Calvetti2018; in Cressman2011 it was set to 7.0
     eto_b: float = (
         0.0055  # 0.04 # volume fraction blood Calvetti2018      # 0.0055 Jolivet2015, Winter2017
     )
@@ -600,11 +595,6 @@ class GeneralParameters:
     # make J_C4 (with proper 1000* /W_) be same as 0.6*vMitooutn (see du for O2, see enzymes_preBigg/OXPHOS_ETC_Theurey2019de_mMmod_n2test.ipynb ) and correspondingly change all other mito rates
 
     T2Jcorrection: float = 0.2783450473253539  # 1.3*0.2783450473253539 #1.3049872091414738*0.2783450473253539  # 0.2783450473253539
-
-    def __post_init__(self):
-        self.beta: float = (
-            self.eto_n / self.eto_ecs
-        )  # 1.33 # Calvetti2018; in Cressman2011 it was set to 7.0
 
 
 @dataclass
@@ -1769,6 +1759,8 @@ class Lactate:
 
     nu_LDH1f_a: float = 0.1  # 0.01 # adj for redox ratio diff #0.1 #Calvetti2018
 
+    nu_LDH1r_a: float = 1 / nu_LDH1f_a  # 10. #100. # adj for redox ratio diff # 10.0 #Calvetti2018
+
     # LDH n  LDH5_synaptic + LDH1_n
     VmfLDH1_n: float = 7816.67  # 4160.0 #7816.67 #4160.0 #Calvetti2018  # 1876 umol/min/mg protein OBrien2007 -> 1000*1876*0.25/60 = 7816.67 mM/s # *0.25 from Nazaret2009 doi:10.1016/j.jtbi.2008.09.037
     VmrLDH1_phase1_n: float = 225.0  # single phased 3245.0 #Calvetti2018   # 54 umol/min/mg protein OBrien2007 -> 1000*54*0.25/60 = 225 mM/s # *0.25 from Nazaret2009 doi:10.1016/j.jtbi.2008.09.037
@@ -1779,6 +1771,7 @@ class Lactate:
     KmLDH1lac_phase2_n: float = 8.6  # OBrien2007
 
     nu_LDH1f_n: float = 0.1  # 0.01 # adj for redox ratio diff #0.1 #Calvetti2018
+    nu_LDH1r_n: float = 1 / nu_LDH1f_n  # 10. #100. # adj for redox ratio diff # 10.0 #Calvetti2018
 
     VmfLDH5_n: float = (
         0.999637815739898 * 4845.83
@@ -1791,6 +1784,7 @@ class Lactate:
     )  # 268 umol/min/mg protein OBrien2007 -> 1000*268*0.25/60 = 1116.67 mM/s # *0.25 from Nazaret2009 doi:10.1016/j.jtbi.2008.09.037
 
     nu_LDH5f_n: float = 0.1  # 0.01 # adj for redox ratio diff # 0.1 #Calvetti2018
+    nu_LDH5r_n: float = 1 / nu_LDH5f_n  # 10. #100. # adj for redox ratio diff # 10.0 #Calvetti2018
 
     KmLDH5pyr_n: float = 0.0296  # OBrien2007 #6.24 #Calvetti2018
     KmLDH5lac_phase1_n: float = 1.73  # OBrien2007
@@ -1835,17 +1829,6 @@ class Lactate:
 
     KeLDH_a: float = 0.046994407267851  # 0.051284424505696105
     KeLDH_n: float = 0.00329708625924639  # 0.0033382819705485936
-
-    def __post_init__(self):
-        self.nu_LDH1r_a: float = (
-            1 / self.nu_LDH1f_a
-        )  # 10. #100. # adj for redox ratio diff # 10.0 #Calvetti2018
-        self.nu_LDH1r_n: float = (
-            1 / self.nu_LDH1f_n
-        )  # 10. #100. # adj for redox ratio diff # 10.0 #Calvetti2018
-        self.nu_LDH5r_n: float = (
-            1 / self.nu_LDH5f_n
-        )  # 10. #100. # adj for redox ratio diff # 10.0 #Calvetti2018
 
 
 @dataclass
