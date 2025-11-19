@@ -50,6 +50,7 @@ class MsrMetabolismManager:
         """
         self.config = config
         from julia import Main as JMain
+
         self.JMain = JMain
         self.JMain.eval("using DifferentialEquations: ODEProblem, solve, Rosenbrock23")
         self.load_metabolism_data()
@@ -143,7 +144,7 @@ class MsrMetabolismManager:
         Args:
             igid: Index of the gid.
             i_metab: metabolism, time step counter.
-            failed_cells: List of errors for the failed cells. 
+            failed_cells: List of errors for the failed cells.
                 Cells that are alive have `None` as value here.
         Raises:
             MsrMetabManagerException: If sol is None.
@@ -158,9 +159,9 @@ class MsrMetabolismManager:
         J = self.JMain
         # Assign model and convert inputs
         J.model = self.model
-        J.u0 = J.eval(f"convert(Array{{Float64}}, {list(self.vm[igid, :])})")
-        J.p  = J.eval(f"convert(Array{{Float64}}, {list(self.parameters[igid, :])})")
-        J.tspan = J.eval(f"({tspan_m[0]}, {tspan_m[1]})")
+        J.u0 = self.vm[igid, :].astype(float)
+        J.p = self.parameters[igid, :].astype(float)
+        J.tspan = tuple(float(x) for x in tspan_m)
 
         try:
             logging.info(f"   solve ODE problem {igid}/{self.ngids}")
@@ -212,16 +213,12 @@ class MsrMetabolismManager:
         """
         # layer_idx: layers are 1-based while python vectors are 0-based
         layer_idx = int(self.neuron_node_pop.get_attribute("layer", raw_gid)) - 1
-        glycogen_au = np.array(
-            self.config.multiscale_run.metabolism.constants.glycogen_au
-        )
+        glycogen_au = np.array(self.config.multiscale_run.metabolism.constants.glycogen_au)
         mito_volume_fraction = np.array(
             self.config.multiscale_run.metabolism.constants.mito_volume_fraction
         )
         glycogen_scaled = glycogen_au * (14.0 / max(glycogen_au))
-        mito_volume_fraction_scaled = mito_volume_fraction * (
-            1.0 / max(mito_volume_fraction)
-        )
+        mito_volume_fraction_scaled = mito_volume_fraction * (1.0 / max(mito_volume_fraction))
         return (
             glycogen_scaled[layer_idx],
             mito_volume_fraction_scaled[layer_idx],
@@ -280,9 +277,7 @@ class MsrMetabolismManager:
                 continue
 
             try:
-                utils.check_value(
-                    v=vec[igid], **check_value_kwargs, err=err, msg=msg_func(igid)
-                )
+                utils.check_value(v=vec[igid], **check_value_kwargs, err=err, msg=msg_func(igid))
             except MsrExcludeNeuronException as e:
                 failed_cells[igid] = str(e)
 
@@ -299,9 +294,7 @@ class MsrMetabolismManager:
         base_ck_conf = {"kwargs": {}, "response": "abort_simulation", "name": ""}
 
         d = self.config.multiscale_run.metabolism.checks.parameters
-        checks = [
-            d.get(str(idx), base_ck_conf) for idx in range(self.parameters.shape[1])
-        ]
+        checks = [d.get(str(idx), base_ck_conf) for idx in range(self.parameters.shape[1])]
 
         for idx, ck_conf in enumerate(checks):
 
@@ -320,7 +313,7 @@ class MsrMetabolismManager:
                 utils.log_stats(
                     vec=self.parameters[:, idx],
                     **ck_conf["kwargs"],
-                    msg=f"parameters[:,  {idx}], {name}{' '*(16-len(name))}",
+                    msg=f"parameters[:,  {idx}], {name}{' ' * (16 - len(name))}",
                 )
 
         d = self.config.multiscale_run.metabolism.checks.vm
@@ -343,5 +336,5 @@ class MsrMetabolismManager:
                 utils.log_stats(
                     vec=self.vm[:, idx],
                     **ck_conf["kwargs"],
-                    msg=f"    vm[:, {idx}], {name}{' '*(16-len(name))}",
+                    msg=f"    vm[:, {idx}], {name}{' ' * (16 - len(name))}",
                 )

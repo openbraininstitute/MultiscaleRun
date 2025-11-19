@@ -9,8 +9,7 @@ import jsonschema
 import numpy as np
 
 from . import utils
-from .templates import (MSR_CONFIG_JSON, MSR_PKG_DIR, MSR_SCHEMA_JSON,
-                        TEMPLATES_DIR)
+from .templates import MSR_CONFIG_JSON, MSR_PKG_DIR, MSR_SCHEMA_JSON, TEMPLATES_DIR
 
 
 class NamedCircuit(
@@ -118,9 +117,7 @@ class MsrConfigSchemaError(MsrConfigException):
                     return str(obj)
                 return super().default(obj)
 
-        msg += textwrap.indent(
-            json.dumps(self.ve.instance, indent=4, cls=Encoder), "  "
-        )
+        msg += textwrap.indent(json.dumps(self.ve.instance, indent=4, cls=Encoder), "  ")
         msg += "\nError: " + self.ve.message
         return msg
 
@@ -245,9 +242,7 @@ class MsrConfig(dict):
         resolves relative paths.
 
         """
-        d = utils.load_json(
-            self.config_path, base_subs_d={"pkg_path": str(MSR_PKG_DIR)}
-        )
+        d = utils.load_json(self.config_path, base_subs_d={"pkg_path": str(MSR_PKG_DIR)})
         self.update(MsrConfig._objectify_config(None, d))
 
         # get msr_dts and fix dts
@@ -272,10 +267,7 @@ class MsrConfig(dict):
         """
         if isinstance(obj, dict):
             return MsrConfig._from_dict(
-                dict(
-                    (key, cls._objectify_config(key, value))
-                    for key, value in obj.items()
-                )
+                dict((key, cls._objectify_config(key, value)) for key, value in obj.items())
             )
         elif isinstance(obj, str) and key.endswith("_path"):
             return Path(obj)
@@ -319,9 +311,7 @@ class MsrConfig(dict):
                 ),
             )
             validator = ext_cls(schema)
-            error = jsonschema.exceptions.best_match(
-                validator.iter_errors(self["multiscale_run"])
-            )
+            error = jsonschema.exceptions.best_match(validator.iter_errors(self["multiscale_run"]))
             if error is not None:
                 raise error
         except jsonschema.exceptions.ValidationError as ve:
@@ -358,9 +348,7 @@ class MsrConfig(dict):
         """Neurodamus dt"""
         if "run" in self and "dt" in self.run:
             return self.run.dt
-        raise MsrConfigException(
-            f"Missing 'run.dt' attribute in config file: '{self.config_path}'"
-        )
+        raise MsrConfigException(f"Missing 'run.dt' attribute in config file: '{self.config_path}'")
 
     @property
     def multiscale_run_dt(self):

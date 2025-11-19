@@ -13,7 +13,7 @@ def config_path():
 class FakeNeurodamusManager:
     def __init__(self) -> None:
         self.circuit_offset = 1000
-        gids = {0: [1, 2], 1: [6], 2: [], 3: [5, 7, 11]}
+        gids = {0: [0, 1], 1: [6], 2: [], 3: [5, 7, 11]}
         ps = np.cumsum([len(i) for i in gids.values()])
         ps = [0, *ps[:-1]]
         self.offset = ps[utils.rank()]
@@ -30,10 +30,10 @@ class FakeNeurodamusManager:
 class FakeMetabolismManager:
     def __init__(self, raw_gids) -> None:
         vals = {
-            0: [i + 1 for i in range(len(raw_gids))],
-            1: [i + 3 for i in range(len(raw_gids))],
-            2: [i + 5 for i in range(len(raw_gids))],
-            3: [i + 7 for i in range(len(raw_gids))],
+            0: [0] * len(raw_gids),
+            1: [1] * len(raw_gids),
+            2: [2] * len(raw_gids),
+            3: [3] * len(raw_gids),
         }
         self.vals = np.array([[-1 for _ in raw_gids], vals[utils.rank()]]).transpose()
 
@@ -66,12 +66,10 @@ def test_simple_reports():
     managers = {}
     managers["neurodamus"] = FakeNeurodamusManager()
     managers["bloodflow"] = FakeBloodflowManager()
-    gids = managers["neurodamus"].gids()
+    gids = managers["neurodamus"].gids(raw=True)
     offset = managers["neurodamus"].offset
     n_bf_segs = managers["bloodflow"].n_segs
-    managers["metabolism"] = FakeMetabolismManager(
-        raw_gids=managers["neurodamus"].gids(raw=True)
-    )
+    managers["metabolism"] = FakeMetabolismManager(raw_gids=managers["neurodamus"].gids(raw=True))
 
     t_unit = "mss"
 
@@ -89,12 +87,10 @@ def test_simple_reports():
                 data[idt, offset : offset + len(gids)],
                 managers["metabolism"].get_vals(1),
             )
-            assert np.allclose(
-                data[idt - 1, offset : offset + len(gids)], [0] * len(gids)
-            )
+            assert np.allclose(data[idt - 1, offset : offset + len(gids)], [0] * len(gids))
             assert data.attrs["units"] == rep.unit
             data = file[f"/report/{pop_name}/mapping/node_ids"]
-            assert np.allclose(data[offset : offset + len(gids)], [i - 1 for i in gids])
+            assert np.allclose(data[offset : offset + len(gids)], [i for i in gids])
             data = file[f"/report/{pop_name}/mapping/time"]
             assert np.allclose(data, [0, conf.run.tstop, conf.metabolism_dt])
             assert data.attrs["units"] == t_unit
@@ -114,6 +110,7 @@ def test_simple_reports():
                 )
                 assert data.attrs["units"] == rep.unit
                 data = file[f"/report/{pop_name}/mapping/node_ids"]
+
                 assert np.allclose(data, rep.src_get_kwargs.idxs)
                 data = file[f"/report/{pop_name}/mapping/time"]
                 assert np.allclose(data, [0, conf.run.tstop, conf.metabolism_dt])

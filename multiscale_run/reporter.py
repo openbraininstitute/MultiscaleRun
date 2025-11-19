@@ -20,6 +20,7 @@ class MsrReporter:
             n_bf_segs: number of bloodflow segments.
             t_unit (optional): Time unit. Defaults to "ms".
         """
+
         self.config = config
         self.t_unit = t_unit
         self.n_bf_segs = n_bf_segs
@@ -39,6 +40,7 @@ class MsrReporter:
         if utils.rank0():
             ps = [0, *np.cumsum([len(i) for i in self.all_gids[:-1]])]
             self.all_gids = [j for i in self.all_gids for j in i]
+
         self.offset = utils.comm().scatter(ps, root=0)
         self.gid2pos = {gid: idx + self.offset for idx, gid in enumerate(gids)}
 
@@ -52,9 +54,7 @@ class MsrReporter:
         return f"/report/{self.config.multiscale_run.preprocessor.node_sets.neuron_population_name}"
 
     def _file_path(self, file_name):
-        return (
-            self.config.config_path.parent / self.config.output.output_dir / file_name
-        )
+        return self.config.config_path.parent / self.config.output.output_dir / file_name
 
     @utils.logs_decorator
     def init_files(self):

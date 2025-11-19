@@ -34,7 +34,7 @@ The script does this:
 
 If a folder is present (`spackenv`, `venv`, `juliaenv`) the script skips that installation step assuming that is already done. If any of the folders are missing, the script redoes the setup. 
 
-The environemnt is still set as it is needed. 
+The environment is still set as it is needed. 
 
 You can always modify them and recall `setup.sh`. It will not override your changes. 
 
@@ -60,6 +60,15 @@ jupyter lab
 ```
 
 open `postproc.ipynb` and run. By default it presents all the traces for the gids `[0, 1, 2]`. The notebook should be self-explainatory and can be changed at will. 
+
+#### Unit tests
+
+Locally, we use tox to run the unit tests:
+
+```bash
+pip install tox
+tox -e unit
+```
 
 ## Authors
 

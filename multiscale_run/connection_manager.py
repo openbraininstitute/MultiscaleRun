@@ -155,9 +155,7 @@ class MsrConnectionManager:
             logging.debug(f"vals set in src: {con.src_simulator}")
 
     @utils.logs_decorator
-    def neurodamus2steps_sync(
-        self, sync_event: str, icon: int, con, action: str
-    ) -> None:
+    def neurodamus2steps_sync(self, sync_event: str, icon: int, con, action: str) -> None:
         """Syncs data from 'MsrNeurodamusManager' (source) to 'MsrStepsManager' (destination).
 
         Args:
@@ -198,9 +196,7 @@ class MsrConnectionManager:
             self.cache[(sync_event, icon)] = np.copy(vals)
 
     @utils.logs_decorator
-    def neurodamus2metabolism_sync(
-        self, sync_event: str, icon: int, con, action: str
-    ) -> None:
+    def neurodamus2metabolism_sync(self, sync_event: str, icon: int, con, action: str) -> None:
         """Syncs data from 'MsrNeurodamusManager' (source) to 'MsrMetabolismManager' (destination).
 
         Args:
@@ -251,9 +247,9 @@ class MsrConnectionManager:
                 vals = self.nXnsegMatBool.dot(vals)
                 vals = np.divide(vals, ndam_m.nc_weights[con.src_get_kwargs.weight][0])
                 # Add vals from dest
-                dest_vals = getattr(
-                    self.managers[con.dest_simulator], con.dest_get_func
-                )(**con.dest_get_kwargs)
+                dest_vals = getattr(self.managers[con.dest_simulator], con.dest_get_func)(
+                    **con.dest_get_kwargs
+                )
                 # remove Vals_previous
                 prev_vals = self.cache[(sync_event, icon)]
                 # merge
@@ -271,9 +267,7 @@ class MsrConnectionManager:
         if con.action == "merge":
             self.cache[(sync_event, icon)] = np.copy(vals)
 
-    def neurodamus2bloodflow_sync(
-        self, sync_event: str, icon: int, con, action: str
-    ) -> None:
+    def neurodamus2bloodflow_sync(self, sync_event: str, icon: int, con, action: str) -> None:
         """Syncs data from 'MsrNeurodamusManager' (source) to 'MsrBloodflowManager' (destination).
 
         Args:
@@ -295,9 +289,9 @@ class MsrConnectionManager:
             case "set":
                 # Probably the radii
                 # idxs of the vasculature segments
-                idxs, vals = getattr(
-                    self.managers[con.src_simulator], con.src_get_func
-                )(**con.src_get_kwargs)
+                idxs, vals = getattr(self.managers[con.src_simulator], con.src_get_func)(
+                    **con.src_get_kwargs
+                )
                 idxs = utils.comm().gather(idxs, root=0)
                 vals = utils.comm().gather(vals, root=0)
                 if utils.rank0():
@@ -318,9 +312,7 @@ class MsrConnectionManager:
         if con.action == "merge":
             self.cache[(sync_event, icon)] = np.copy(vals)
 
-    def bloodflow2metabolism_sync(
-        self, sync_event: str, icon: int, con, action: str
-    ) -> None:
+    def bloodflow2metabolism_sync(self, sync_event: str, icon: int, con, action: str) -> None:
         """Syncs data from 'MsrBloodflowManager' (source) to 'MsrMetabolismManager' (destination).
 
         Args:
@@ -374,9 +366,7 @@ class MsrConnectionManager:
             self.cache[(sync_event, icon)] = np.copy(vals)
 
     @utils.logs_decorator
-    def steps2metabolism_sync(
-        self, sync_event: str, icon: int, con, action: str
-    ) -> None:
+    def steps2metabolism_sync(self, sync_event: str, icon: int, con, action: str) -> None:
         """Syncs data from 'MsrStepsManager' (source) to 'MsrMetabolismManager' (destination).
 
         Args:
@@ -474,9 +464,7 @@ class MsrConnectionManager:
         metab_m = self.managers.get("metabolism", None)
 
         gids = ndam_m.gids()
-        failed_gids = {
-            gids[igid]: e for igid, e in enumerate(failed_cells) if e is not None
-        }
+        failed_gids = {gids[igid]: e for igid, e in enumerate(failed_cells) if e is not None}
         ndam_m.removed_gids |= failed_gids
 
         to_be_removed = list(ndam_m.gen_to_be_removed_segs())
@@ -486,9 +474,7 @@ class MsrConnectionManager:
         if hasattr(self, "nXnsegMatBool"):
             self.nXnsegMatBool = utils.delete_cols(self.nXnsegMatBool, to_be_removed)
 
-        to_be_removed = list(
-            [idx for idx, e in enumerate(failed_cells) if e is not None]
-        )
+        to_be_removed = list([idx for idx, e in enumerate(failed_cells) if e is not None])
         if hasattr(self, "nXtetMat"):
             self.nXtetMat = utils.delete_rows(self.nXtetMat, to_be_removed)
         if hasattr(self, "nXnsegMatBool"):

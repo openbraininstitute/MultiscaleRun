@@ -3,9 +3,14 @@
 import numpy as np
 from neuron import h
 
-from multiscale_run import (MsrConfig, MsrConnectionManager,
-                            MsrNeurodamusManager, MsrPreprocessor,
-                            MsrStepsManager, utils)
+from multiscale_run import (
+    MsrConfig,
+    MsrConnectionManager,
+    MsrNeurodamusManager,
+    MsrPreprocessor,
+    MsrStepsManager,
+    utils,
+)
 
 
 def check_ratio_mat(m):
@@ -46,9 +51,7 @@ def check_mats_shape(ndam_m, conn_m, steps_m, nshape=None, segshape=None):
 
     """
     d = {
-        int(nc.CCell.gid): len(
-            [seg for sec in ndam_m.gen_secs(nc) for seg in ndam_m.gen_segs(sec)]
-        )
+        int(nc.CCell.gid): len([seg for sec in ndam_m.gen_secs(nc) for seg in ndam_m.gen_segs(sec)])
         for nc in ndam_m.ncs
     }
     nn = len(ndam_m.ncs)
@@ -117,9 +120,7 @@ def test_connection():
 
     utils.rank_print("gid: ", [int(nc.CCell.gid) for nc in managers["neurodamus"].ncs])
     failed_cells_dict = {933: "remove from rank 0", 1004: "remove from rank 1"}
-    failed_cells = [
-        failed_cells_dict.get(i, None) for i in managers["neurodamus"].gids()
-    ]
+    failed_cells = [failed_cells_dict.get(i, None) for i in managers["neurodamus"].gids()]
     conn_m.remove_gids(failed_cells=failed_cells)
 
     utils.rank_print([int(nc.CCell.gid) for nc in managers["neurodamus"].ncs])
@@ -150,9 +151,7 @@ def test_connection():
     utils.rank_print([int(nc.CCell.gid) for nc in managers["neurodamus"].ncs])
 
     failed_cells_dict = {17500: "reason 0"}
-    failed_cells = [
-        failed_cells_dict.get(i, None) for i in managers["neurodamus"].gids()
-    ]
+    failed_cells = [failed_cells_dict.get(i, None) for i in managers["neurodamus"].gids()]
     conn_m.remove_gids(failed_cells=failed_cells)
     check_mats_shape(
         managers["neurodamus"],
@@ -165,9 +164,7 @@ def test_connection():
     utils.rank_print([int(nc.CCell.gid) for nc in managers["neurodamus"].ncs])
 
     failed_cells_dict = {175: "reason 0"}
-    failed_cells = [
-        failed_cells_dict.get(i, None) for i in managers["neurodamus"].gids()
-    ]
+    failed_cells = [failed_cells_dict.get(i, None) for i in managers["neurodamus"].gids()]
 
     check_mats_shape(
         managers["neurodamus"],
