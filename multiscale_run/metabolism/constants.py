@@ -302,7 +302,7 @@ class Ephys:
 
     kbath: float = 4.0  # 6.3 #4.0 # #kbath=4.0 Cressman2011 #3. CapoRangel ... Calvetti2019 #5.03 #4.2 #6.3 # mM # Calvetti2018
 
-    gamma: float = 5.99  # but gamma-ephys isn't in use, because different ephys model in the end gamma is only used for mito-ETC functions #5. #0.045
+    # gamma: float = 5.99  # but gamma-ephys isn't in use, because different ephys model in the end gamma is only used for mito-ETC functions #5. #0.045
     glia_c: float = 30.0  # 20.75 # mM/s # Calvetti2018 #glia=66.666666666 # Cressman2011
 
     Na_n2_baseNKA: float = (
@@ -575,7 +575,7 @@ class Gaba:
 
 
 @dataclass
-class GeneralParameters:
+class GeneralConstants:
     R: float = 8.31  # J/(K*mol)
     T: float = 310.0  # Kelvin, 37 C
     F: float = 9.64853e04  #
@@ -1078,6 +1078,12 @@ class GeneralParameters:
     # CytCmito total = 0.07 mM JOHN B. CLARKE AND WILLIAM J. NICKLASS 1970 ratBrainMito.pdf
 
     # CytCoxmito_a0 = #0.0588 # 80% Cooper PMID: 9620863  #ratio from PMID: 19029908, sum from JOHN B. CLARKE AND WILLIAM J. NICKLASS 1970 ratBrainMito.pdf  #also CytCredox and CuCCoxidase redox are close: doi:10.1371/journal.pcbi.1000212  #0.063 # CytCmito total = 0.07 mM JOHN B. CLARKE AND WILLIAM J. NICKLASS 1970 ratBrainMito.pdf and 10% cytc red from fig 5 febs.14151.pdf Heiske doi:10.1111/febs.14151 #0.02 #;0.21  #0.02 Zhang2018 # 0.21  #u140 #0.315006*(33.3506/50.0) = 0.21011278207200001 #0.09# #0.136275*(33.3506/50.0)= 0.09089706030000001 inferred from IvanChang steady state #0.0186
+
+    # Additional costants that I have found in the simulation_config.json and can be changed more easily
+    xNEmod: float = 0.025,
+    KdNEmod: float = 3.0e-4,
+    Iinj: float = 0.0,
+    synInput: float = 0.0
 
 
 @dataclass

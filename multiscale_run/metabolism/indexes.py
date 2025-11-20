@@ -227,9 +227,12 @@ class _Idx:
         """Return name -> comment mapping."""
         return dict(self._comments)
 
+    def as_list(self):
+        return [f"{name}: {getattr(self, name)} #{self._comments[name]}" for name in self._comments]
+
     def __str__(self) -> str:
         return "\n".join(
-            f"{name}: {getattr(self, name)} #{self._comments[name]}" for name in self._comments
+            self.as_list()
         )
 
 
