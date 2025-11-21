@@ -1,7 +1,7 @@
 # for the moment, let's not complain for never used vars
 # ruff: noqa: F841
 import inspect
-from dataclasses import dataclass, fields, is_dataclass
+from dataclasses import dataclass, field, fields, is_dataclass
 
 
 @dataclass
@@ -792,6 +792,16 @@ class GeneralConstants:
     ASPmito_n0: float = 1.4  # approx set as cyt, Maletic-Savatic PMID:19022759 and Nazaret 2009 10.1016/j.jtbi.2008.09.037 #0.1 #;2.0;2.6;1.5  #2.0 #Shestov2007 #2.6 From Molecules to Networks 2014 (book) #1.5 ### Chen Abs Quant Big mmc1 # check and set neuronal!!!!
     GLUmito_n0: float = 10.0  # Roberg PMID: 10942715 #5.3 # Nazaret 2008 #0.057 # by Chen # check and set neuronal!!!!
 
+    # katta: I have put it here but I do not know where it should go
+    mito_volume_fraction :tuple[float]= (
+                    0.0459,
+                    0.0522,
+                    0.064,
+                    0.0774,
+                    0.0575,
+                    0.0403
+    )
+
     ### MAS cyto-mito
     MAL_n0: float = 0.45  # ;2.0;0.6 # 2.0 #cytosol # 0.6 by Chen # 5.0 # check and set neuronal!!!! just assumption  from # Nonactivating behavior is observed at concentrations between 0.02 and 0.15 mM L-malate and activating behavior is observed between 0.15 and 0.5 mM L-malate.(Malate dehydrogenase. Kinetic studies of substrate activation of supernatant enzyme by L-malate. Mueggler PA, Wolfe RG.)
     OXA_n0: float = 0.01  # 0.1 #;0.005;0.01 #cytosol #0.005 # check and set neuronal, just assumption from heart data now # 0.01 mM from 10.1007/978-1-4614-1788-0 and Williamson 1967 # Berndt 2015 re Indiveri C, Dierks T, Kramer R, Palmieri F. Reaction-Mechanism of the Reconstituted Oxoglutarate Carrier from Bovine Heart-Mitochondria
@@ -1435,10 +1445,10 @@ class Glycogen:
     Km_Pi_GP_b_a: float = 0.2
     KeqGPb: float = 0.42
 
-    AMPnHGPb = 1.5  # 1.75  # 1.5 DiNuzzo2010
-    Km_AMP_GP_b_a = 0.016  # DiNuzzo2010 #1.9e-06
-    Ki_Pi_G_P_b_a = 4.6
-    Ki_G1P_GP_b_a = 7.4
+    AMPnHGPb: float = 1.5  # 1.75  # 1.5 DiNuzzo2010
+    Km_AMP_GP_b_a: float = 0.016  # DiNuzzo2010 #1.9e-06
+    Ki_Pi_G_P_b_a: float = 4.6
+    Ki_G1P_GP_b_a : float= 7.4
 
     #### UDPGP
     VmaxfUDPGP: float = 0.004420628605834113  # 0.0045555170380946215 #0.0015762057284464041*2.890179217014261 # 1.374710748327394*1.070600857717005*0.01253505948380228 #
@@ -1448,6 +1458,7 @@ class Glycogen:
     KpiUDPGP: float = 0.2  # 200.0 # 200 as adj for Pi instead of PPi #0.2
     KUDPglucoUDPGP_a: float = 0.05  # KglucoUDPGP
 
+    au: tuple[float] = (128.0, 100.0, 100.0, 90.0, 80.0, 75.0)
 
 @dataclass
 class Glycolysis:

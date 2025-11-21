@@ -9,7 +9,7 @@ from . import config, utils
 
 from scipy.integrate import solve_ivp
 
-from .metabolism import model, constants, initial_conditions
+from .metabolism import model, constants, initial_conditions, indexes
 
 
 class MsrMetabManagerException(Exception):
@@ -24,15 +24,6 @@ class MsrExcludeNeuronException(Exception):
 
 class MsrAbortSimulationException(Exception):
     """This error should not be recoverable. Something went very wrong and continuing the simulation is meaningless"""
-
-
-class MsrMetabolismParam(enum.Enum):
-    ina_density = 0
-    ik_density = 1
-    mito_scale = 2
-    bloodflow_Fin = 3
-    bloodflow_Fout = 4
-    bloodflow_vol = 5
 
 
 class MsrMetabolismManager:
@@ -219,9 +210,9 @@ class MsrMetabolismManager:
         """
         # layer_idx: layers are 1-based while python vectors are 0-based
         layer_idx = int(self.neuron_node_pop.get_attribute("layer", raw_gid)) - 1
-        glycogen_au = np.array(self.config.multiscale_run.metabolism.constants.glycogen_au)
+        glycogen_au = np.array(constants.Glycogen.au)
         mito_volume_fraction = np.array(
-            self.config.multiscale_run.metabolism.constants.mito_volume_fraction
+            constants.GeneralConstants.mito_volume_fraction
         )
         glycogen_scaled = glycogen_au * (14.0 / max(glycogen_au))
         mito_volume_fraction_scaled = mito_volume_fraction * (1.0 / max(mito_volume_fraction))
@@ -229,6 +220,10 @@ class MsrMetabolismManager:
             glycogen_scaled[layer_idx],
             mito_volume_fraction_scaled[layer_idx],
         )
+    
+    def reset_u(self, ngids):
+        self.vm = np.tile(initial_conditions.make_u0(), (ngids, 1))
+
 
     @utils.logs_decorator
     def reset(self, raw_gids: list[int]):
@@ -240,23 +235,50 @@ class MsrMetabolismManager:
         Returns:
             None
         """
-        metab_conf = self.config.multiscale_run.metabolism
-        mito_scale_idx = MsrMetabolismParam.mito_scale.value
-
+        self.reset_constants()
         ngids = len(raw_gids)
-        self.vm = np.tile(initial_conditions.make_u0(), (ngids, 1))
-        # self.vm = np.tile(
-        #     pd.read_csv(metab_conf.u0_path, sep=",", header=None)[0].tolist(),
-        #     (ngids, 1),
-        # )
+        self.reset_u0(ngids)
+        self.reset_parameters(raw_gids=raw_gids)
+        
+    def reset_u0(self, ngids):
+        metab_conf = self.config.multiscale_run.metabolism
+        u0 = initial_conditions.make_u0()
+        if "u0" in metab_conf:
+            initial_conditions.override(u0, indexes.UIdx, metab_conf.u0)
+        self.vm = np.tile(u0, (ngids, 1))
 
-        self.parameters = np.tile(metab_conf.parameters, (ngids, 1))
+    def reset_parameters(self, raw_gids: list[int]):
+        metab_conf = self.config.multiscale_run.metabolism
+        p0 = initial_conditions.make_parameters()
+        if "parameters" in metab_conf:
+            initial_conditions.override(p0, indexes.PIdx, metab_conf.parameters)
+        self.parameters = np.tile(p0, (len(raw_gids), 1))
+        # auto-override if not specifically stated in the conf
+        if "mito_scale" not in metab_conf.parameters:
+            self.parameters[:, indexes.PIdx.mito_scale] = [
+                self._get_GLY_a_and_mito_vol_frac(c_gid)[1] for c_gid in raw_gids
+            ]
 
-        # TODO this may be made more general. Atm it has low priority.
+    def reset_constants(self):
+        metab_conf = self.config.multiscale_run.metabolism
+        for cls_name, fields in metab_conf.constants.items():
+            # Will throw if class doesn't exist
+            cls = getattr(constants, cls_name)  
 
-        self.parameters[:, mito_scale_idx] = [
-            self._get_GLY_a_and_mito_vol_frac(c_gid)[1] for c_gid in raw_gids
-        ]
+            # Get the allowed dataclass fields
+            if not hasattr(cls, "__dataclass_fields__"):
+                raise TypeError(f"{cls_name} is not a dataclass")
+
+            allowed_keys = cls.__dataclass_fields__.keys()
+
+            for key, value in fields.items():
+                if key not in allowed_keys:
+                    raise AttributeError(
+                        f"{cls_name} has no attribute '{key}'. Available keys: {list(allowed_keys)}"
+                    )
+                if isinstance(value, list):
+                    value = tuple(value)
+                setattr(cls, key, value)
 
     def _check_input_for_currently_valid_gids(
         self,

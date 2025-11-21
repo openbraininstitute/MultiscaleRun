@@ -1,6 +1,6 @@
 import numpy as np
 
-from multiscale_run.metabolism.indexes import UIdx
+from multiscale_run.metabolism.indexes import UIdx, PIdx
 
 
 def make_u0() -> np.ndarray:
@@ -195,3 +195,16 @@ def make_u0() -> np.ndarray:
     # u0[UIdx.placeholder2] = 0.0237000024973173 #111
 
     return u0
+
+def make_parameters() -> np.ndarray:
+    p0 = np.zeros(PIdx.size)
+
+    p0[PIdx.notBigg_FinDyn_W2017] = 0.0001
+    p0[PIdx.notBigg_Fout_W2017] = 0.0001
+    p0[PIdx.notBigg_vV_b_b] = 0.023
+    return p0
+
+
+def override(v, cls, subs):
+    for key, value in subs.items():
+        v[getattr(cls, key)] = value
