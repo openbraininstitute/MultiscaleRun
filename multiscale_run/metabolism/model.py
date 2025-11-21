@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from .constants import (
+from multiscale_run.metabolism.constants import (
     ATDMP,
     ETC,
     MAS,
@@ -24,7 +24,7 @@ from .constants import (
     PyrCarb,
     PyrTrCytoMito,
 )
-from .indexes import PIdx, UIdx
+from multiscale_run.metabolism.indexes import PIdx, UIdx
 
 
 def compute_du(u, p, t):
@@ -293,7 +293,7 @@ def compute_du(u, p, t):
     Pi_i_nM = 1e-3 * u_pi_i_n
     Ctot_nM = 1e-3 * u_notBigg_Ctot_m_n
     Qtot_nM = 1e-3 * u_notBigg_Qtot_m_n
-    C_H_ims_nM = 1e-3 * u_notBigg_Qtot_m_n
+    C_H_ims_nM = 1e-3 * u_h_i_n
     AMP_nM = 0
     NAD_x_n = NADtot_n - NADHmito_nM
     u_nad_m_n = 1000 * NAD_x_n
@@ -309,7 +309,7 @@ def compute_du(u, p, t):
         - np.sqrt((ETC.K_DD + ADP_nM + ETC.Mg_tot) ** 2 - 4 * (ETC.Mg_tot * ADP_nM))
     ) / 2
     Mg_i_n = ETC.Mg_tot - ADP_me_n
-    dG_H_n = ETC.etcF * u[19] + 1 * ETC.etcRT * np.log(C_H_ims_nM / C_H_mitomatr_nM)
+    dG_H_n = ETC.etcF * u_notBigg_MitoMembrPotent_m_n + 1 * ETC.etcRT * np.log(C_H_ims_nM / C_H_mitomatr_nM)
     dG_C1op_n = ETC.dG_C1o - 1 * ETC.etcRT * np.log(C_H_mitomatr_nM / 1e-7)
     dG_C3op_n = ETC.dG_C3o + 2 * ETC.etcRT * np.log(C_H_mitomatr_nM / 1e-7)
     dG_C4op_n = ETC.dG_C4o - 2 * ETC.etcRT * np.log(C_H_mitomatr_nM / 1e-7)
@@ -444,10 +444,10 @@ def compute_du(u, p, t):
         
     # BDHm_a(u_bhb_c_a,u_acac_c_a,u_nad_m_a,u_nadh_m_a) = 1*(Ketones.Vmax_bHBDH_f_n*u_nad_m_a*u_bhb_c_a/(Ketones.Ki_NAD_B_HBD_f_n*Ketones.Km_betaHB_BHBD_n+Ketones.Km_betaHB_BHBD_n*u_nad_m_a+Ketones.Km_NAD_B_HBD_n*u_bhb_c_a+u_nad_m_a*u_bhb_c_a)-(Ketones.Vmax_bHBDH_r_n*u_nadh_m_a*u_acac_c_a/(Ketones.Ki_NADH_BHBD_r_n*Ketones.Km_AcAc_BHBD_n+Ketones.Km_AcAc_BHBD_n*u_nadh_m_a+Ketones.Km_NADH_BHBD_n*u_acac_c_a+u_nadh_m_a*u_acac_c_a)))
 
-    f_ASPTAm_n = MAS.VfAAT_n*(u_asp_L_m_n*u_akg_m_n-u_oaa_m_n*u_glu_L_m_n/MAS.KeqAAT_n)/(MAS.KeqAAT_n*u_asp_L_m_n+MAS.KmASP_AAT_n*(1.0+u_akg_m_n/MAS.KiAKG_AAT_n)*u_akg_m_n+u_asp_L_m_n*u_akg_m_n+MAS.KmASP_AAT_n*u_akg_m_n*u_glu_L_m_n/MAS.KiGLU_AAT_n+(MAS.KiASP_AAT_n*MAS.KmAKG_AAT_n/(MAS.KmOXA_AAT_n*MAS.KiGLU_AAT_n))*(MAS.KmGLU_AAT_n*u_asp_L_m_n*u_oaa_m_n/MAS.KiASP_AAT_n+u_oaa_m_n*u_glu_L_m_n+MAS.KmGLU_AAT_n*(1.0+u_akg_m_n/MAS.KiAKG_AAT_n)*u_oaa_m_n+MAS.KmOXA_AAT_n*u_glu_L_m_n))
+    f_ASPTAm_n = MAS.VfAAT_n*(u_asp_L_m_n*u_akg_m_n-u_oaa_m_n*u_glu_L_m_n/MAS.KeqAAT_n)/(MAS.KmAKG_AAT_n*u_asp_L_m_n+MAS.KmASP_AAT_n*(1.0+u_akg_m_n/MAS.KiAKG_AAT_n)*u_akg_m_n+u_asp_L_m_n*u_akg_m_n+MAS.KmASP_AAT_n*u_akg_m_n*u_glu_L_m_n/MAS.KiGLU_AAT_n+(MAS.KiASP_AAT_n*MAS.KmAKG_AAT_n/(MAS.KmOXA_AAT_n*MAS.KiGLU_AAT_n))*(MAS.KmGLU_AAT_n*u_asp_L_m_n*u_oaa_m_n/MAS.KiASP_AAT_n+u_oaa_m_n*u_glu_L_m_n+MAS.KmGLU_AAT_n*(1.0+u_akg_m_n/MAS.KiAKG_AAT_n)*u_oaa_m_n+MAS.KmOXA_AAT_n*u_glu_L_m_n))
     f_MDH_n = MAS.VmaxcMDH_n*(u_mal_L_c_n*u_nad_c_n-u_oaa_c_n*u_nadh_c_n/MAS.Keqcmdh_n)/((1+u_mal_L_c_n/MAS.Kmmalcmdh_n)*(1+u_nad_c_n/MAS.Kmnadcmdh_n)+(1+u_oaa_c_n/MAS.Kmoxacmdh_n)*(1+u_nadh_c_n/MAS.Kmnadhcmdh_n)-1)
     f_ASPTA_n = MAS.VfCAAT_n*(u_asp_L_c_n*u_akg_c_n-u_oaa_c_n*u_glu_L_c_n/MAS.KeqCAAT_n)/(MAS.KmAKG_CAAT_n*u_asp_L_c_n+MAS.KmASP_CAAT_n*(1.0+u_akg_c_n/MAS.KiAKG_CAAT_n)*u_akg_c_n+u_asp_L_c_n*u_akg_c_n+MAS.KmASP_CAAT_n*u_akg_c_n*u_glu_L_c_n/MAS.KiGLU_CAAT_n+(MAS.KiASP_CAAT_n*MAS.KmAKG_CAAT_n/(MAS.KmOXA_CAAT_n*MAS.KiGLU_CAAT_n))*(MAS.KmGLU_CAAT_n*u_asp_L_c_n*u_oaa_c_n/MAS.KiASP_CAAT_n+u_oaa_c_n*u_glu_L_c_n+MAS.KmGLU_CAAT_n*(1.0+u_akg_c_n/MAS.KiAKG_CAAT_n)*u_oaa_c_n+MAS.KmOXA_CAAT_n*u_glu_L_c_n))
-    f_ASPGLUm_n = MAS.Vmaxagc_n*(u_asp_L_m_n*u_glu_L_c_n-u_asp_L_c_n*u_glu_L_m_n/((np.exp(u_notBigg_MitoMembrPotent_m_n)**(GeneralConstants.F/(GeneralConstants.R*GeneralConstants.T)))*(u_h_c_n/u_h_m_n)))/((u_asp_L_m_n+MAS.Km_aspmito_agc_n)*(u_glu_L_c_n+MAS.Km_glu_agc_n)+(u_asp_L_c_n+MAS.Km_asp_agc_n)*(u_glu_L_m_n+MAS.Km_glumito_agc_n))
+    f_ASPGLUm_n = MAS.Vmaxagc_n*(u_asp_L_m_n*u_glu_L_c_n-u_asp_L_c_n*u_glu_L_m_n/((np.exp(u_notBigg_MitoMembrPotent_m_n*GeneralConstants.F/(GeneralConstants.R*GeneralConstants.T)))*(u_h_c_n/u_h_m_n)))/((u_asp_L_m_n+MAS.Km_aspmito_agc_n)*(u_glu_L_c_n+MAS.Km_glu_agc_n)+(u_asp_L_c_n+MAS.Km_asp_agc_n)*(u_glu_L_m_n+MAS.Km_glumito_agc_n))
     f_AKGMALtm_n = MAS.Vmaxmakgc_n*(u_mal_L_c_n*u_akg_m_n-u_mal_L_m_n*u_akg_c_n)/((u_mal_L_c_n+MAS.Km_mal_mkgc_n)*(u_akg_m_n+MAS.Km_akgmito_mkgc_n)+(u_mal_L_m_n+MAS.Km_malmito_mkgc_n)*(u_akg_c_n+MAS.Km_akg_mkgc_n))
     f_r0509_a = ETC.x_DH_a*(ETC.r_DH_a*NAD_x_a-(1e-3*u_nadh_m_a))*((1+(1e-3*u_pi_m_a)/ETC.k_Pi1)/(1+(1e-3*u_pi_m_a)/ETC.k_Pi2))
     f_NADH2_u10mi_a = ETC.x_C1*(np.exp(-(dG_C1op_a+4*dG_H_a)/ETC.etcRT)*(1e-3*u_nadh_m_a)*Q_a-NAD_x_a*(1e-3*u_q10h2_m_a))
@@ -484,7 +484,15 @@ def compute_du(u, p, t):
 
     f_GLNt4_n = Gltgln.TmaxSNAT_GLN_n*(u_gln_L_e_e-u_gln_L_c_n/Gltgln.coeff_gln_ratio_n_ecs)/(Gltgln.KmSNAT_GLN_n+u_gln_L_c_n)
     f_GLUNm_n = Gltgln.VmGLS_n*(u_gln_L_c_n-u_glu_L_m_n/Gltgln.KeqGLS_n)/(Gltgln.KmGLNGLS_n*(1.0+u_glu_L_m_n/Gltgln.KiGLUGLS_n)+u_gln_L_c_n)
-    f_GLUt6_a = -((1/(2*GeneralConstants.F*1e-3))*(-Gltgln.alpha_EAAT*np.exp(-Gltgln.beta_EAAT*(u_notBigg_Va_c_a-((GeneralConstants.R*GeneralConstants.T/(2*GeneralConstants.F*1e-3))*np.log(((Gltgln.Na_syn_EAAT/u_na1_c_a)**3)*(Gltgln.H_syn_EAAT/Gltgln.H_ast_EAAT)*(u_glu_L_syn_syn/u_glu_L_c_a)*(u_k_c_a/u_k_e_e)))))))
+
+
+    GLUt6_a_multi = Gltgln.alpha_EAAT/(2*GeneralConstants.F*1e-3)
+    GLUt6_a_log_arg = ((Gltgln.Na_syn_EAAT/u_na1_c_a)**3)*(Gltgln.H_syn_EAAT/Gltgln.H_ast_EAAT)*(u_glu_L_syn_syn/u_glu_L_c_a)*(u_k_c_a/u_k_e_e)
+    GLUt6_a_log_multi = (GeneralConstants.R*GeneralConstants.T/(2*GeneralConstants.F*1e-3))
+    f_GLUt6_a = GLUt6_a_multi*np.exp(-Gltgln.beta_EAAT*(u_notBigg_Va_c_a-GLUt6_a_log_multi*np.log(GLUt6_a_log_arg)))
+
+
+
     f_GLUDxm_a = Gltgln.VmGDH_a*(u_nad_m_a*u_glu_L_c_a-u_nadh_m_a*u_akg_m_a/Gltgln.KeqGDH_a)/(Gltgln.KiNAD_GDH_a*Gltgln.KmGLU_GDH_a+Gltgln.KmGLU_GDH_a*u_nad_m_a+Gltgln.KiNAD_GDH_a*u_glu_L_c_a+u_glu_L_c_a*u_nad_m_a+u_glu_L_c_a*u_nad_m_a/Gltgln.KiAKG_GDH_a+Gltgln.KiNAD_GDH_a*Gltgln.KmGLU_GDH_a*u_nadh_m_a/Gltgln.KiNADH_GDH_a+Gltgln.KiNAD_GDH_a*Gltgln.KmGLU_GDH_a*Gltgln.KmNADH_GDH_a*u_akg_m_a/(Gltgln.KiAKG_GDH_a*Gltgln.KiNADH_GDH_a)+Gltgln.KmNADH_GDH_a*u_glu_L_c_a*u_nadh_m_a/Gltgln.KiNADH_GDH_a+Gltgln.KiNAD_GDH_a*Gltgln.KmGLU_GDH_a*Gltgln.KmAKG_GDH_a*u_nadh_m_a/(Gltgln.KiAKG_GDH_a*Gltgln.KiNADH_GDH_a)+Gltgln.KiNAD_GDH_a*Gltgln.KmGLU_GDH_a*Gltgln.KmAKG_GDH_a*u_akg_m_a*u_nadh_m_a/(Gltgln.KiAKG_GDH_a*Gltgln.KiNADH_GDH_a)+u_glu_L_c_a*u_nad_m_a*u_akg_m_a/Gltgln.KiAKG_GDH_a+Gltgln.KiNAD_GDH_a*Gltgln.KmGLU_GDH_a*Gltgln.KmAKG_GDH_a/Gltgln.KiAKG_GDH_a+Gltgln.KiNAD_GDH_a*Gltgln.KmGLU_GDH_a*u_glu_L_c_a*u_nadh_m_a*u_akg_m_a/(Gltgln.KiGLU_GDH_a*Gltgln.KiAKG_GDH_a*Gltgln.KiNADH_GDH_a)+Gltgln.KiNAD_GDH_a*Gltgln.KmGLU_GDH_a*u_akg_m_a*u_nadh_m_a/(Gltgln.KiAKG_GDH_a*Gltgln.KiNADH_GDH_a)+Gltgln.KmNADH_GDH_a*Gltgln.KmGLU_GDH_a*u_akg_m_a*u_nad_m_a/(Gltgln.KiAKG_GDH_a*Gltgln.KiNADH_GDH_a))
     f_GLNS_a = Gltgln.VmaxGLNsynth_a*(u_glu_L_c_a/(Gltgln.KmGLNsynth_a+u_glu_L_c_a))*((1/(u_atp_c_a/u_adp_c_a))/(Gltgln.muGLNsynth_a+(1/(u_atp_c_a/u_adp_c_a))))
     f_GLNt4_a = Gltgln.TmaxSNAT_GLN_a*(u_gln_L_c_a-u_gln_L_e_e)/(Gltgln.KmSNAT_GLN_a+u_gln_L_c_a)
@@ -553,9 +561,8 @@ def compute_du(u, p, t):
     f_notBigg_JLacTr_b = (2*(Lactate.C_Lac_a-u_lac_L_b_b)/GeneralConstants.eto_b)*p_notBigg_FinDyn_W2017
 
     f_notBigg_MCT1_LAC_b = Lactate.TbLac*(u_lac_L_b_b/(u_lac_L_b_b+Lactate.KbLac)-u_lac_L_e_e/(u_lac_L_e_e+Lactate.KbLac))
-    f_notBigg_MCT1_LAC_b = Lactate.TaLac*(u_lac_L_e_e/(u_lac_L_e_e+Lactate.Km_Lac_a)-u_lac_L_c_a/(u_lac_L_c_a+Lactate.Km_Lac_a))
-    f_notBigg_MCT1_LAC_b = Lactate.TnLac*(u_lac_L_e_e/(u_lac_L_e_e+Lactate.Km_LacTr_n)-u_lac_L_c_n/(u_lac_L_c_n+Lactate.Km_LacTr_n))
-        
+    f_L_LACt2r_a = Lactate.TaLac*(u_lac_L_e_e/(u_lac_L_e_e+Lactate.Km_Lac_a)-u_lac_L_c_a/(u_lac_L_c_a+Lactate.Km_Lac_a))
+    f_L_LACt2r_n = Lactate.TnLac*(u_lac_L_e_e/(u_lac_L_e_e+Lactate.Km_LacTr_n)-u_lac_L_c_n/(u_lac_L_c_n+Lactate.Km_LacTr_n))
     f_notBigg_jLacDiff_e = 0 # betaLacDiff*(u0_ss[150]-u_lac_L_e_e))
         
     f_notBigg_vLACgc = Lactate.TMaxLACgc*(u_lac_L_b_b/(u_lac_L_b_b+Lactate.KtLACgc)-u_lac_L_c_a/(u_lac_L_c_a+Lactate.KtLACgc))
@@ -611,6 +618,24 @@ def compute_du(u, p, t):
     du[UIdx.mg2_m_n] = 0.5*GeneralConstants.T2Jcorrection*(1000*(-f_notBigg_J_MgATPx_n-f_notBigg_J_MgADPx_n)/ETC.W_x)
     du[UIdx.nadh_m_n] = 6.96*(f_notBigg_vMitoinn+f_notBigg_vShuttlen-f_notBigg_vMitooutn_n)
     du[UIdx.q10h2_m_n] = 0.5*GeneralConstants.T2Jcorrection*(1000*(+f_NADH2_u10mi_n-f_CYOR_u10mi_n)/ETC.W_x)
+
+    # print(u_nadh_m_n)
+    # print(u_q10h2_m_n)
+    # print(f_CYOR_u10mi_n)
+    # print(u_focytC_m_n)
+    # print(u_q10h2_m_n,u_pi_m_n)
+    # print(u_notBigg_MitoMembrPotent_m_n)
+# debug
+# u_nadh_m_n = 0.3146584474671007
+# u_q10h2_m_n = 0.0155067120830932
+# NADH2_u10mi_n(u_nadh_m_n, u_q10h2_m_n) = 0.00019979828104945647
+# u_focytC_m_n = 0.1318502545732708
+# u_notBigg_MitoMembrPotent_m_n = 152.33918637408712
+# (u_q10h2_m_n, u_pi_m_n) = (0.0155067120830932, 17.22873019667985)
+# CYOR_u10mi_n(u_focytC_m_n, u_notBigg_MitoMembrPotent_m_n, u_q10h2_m_n, u_pi_m_n) = 0.00019979930000609114
+# /debug
+
+
     du[UIdx.focytC_m_n] = 0.5*GeneralConstants.T2Jcorrection*(1000*(+2*f_CYOR_u10mi_n-2*f_CYOOm2i_n)/ETC.W_i)
     du[UIdx.o2_c_n] = f_notBigg_JO2fromCap2n-0.6*f_notBigg_vMitooutn_n
     du[UIdx.atp_m_n] = 0.5*GeneralConstants.T2Jcorrection*(1000*(+f_ATPS4mi_n-f_ATPtm_n)/ETC.W_x)
@@ -678,7 +703,7 @@ def compute_du(u, p, t):
     # du[UIdx.notBigg_Ctot_m_a] = 0
     # du[UIdx.notBigg_Qtot_m_a] = 0
     # du[UIdx.h_i_a] = 0
-    du[UIdx.atp_c_a] = (-(u_ca2_c_a/Glycogen.cai0_ca_ion)*(1+GeneralConstants.xNEmod*(u[178]/(GeneralConstants.KdNEmod+u[178])))*f_ADNCYC_a+f_CKc_a+0.5*(1/6.96)*1000*(-f_notBigg_J_ATP_a)-f_HEX1_a-f_PFK_a-f_PFK26_a+f_PGK_a+f_PYK_a-0.15*(7/4)*vPumpg-ATDMP.vATPasesg)/(1-dAMPdATPg)
+    du[UIdx.atp_c_a] = (-(u_ca2_c_a/Glycogen.cai0_ca_ion)*(1+GeneralConstants.xNEmod*(u_nrpphr_e_e/(GeneralConstants.KdNEmod+u_nrpphr_e_e)))*f_ADNCYC_a+f_CKc_a+0.5*(1/6.96)*1000*(-f_notBigg_J_ATP_a)-f_HEX1_a-f_PFK_a-f_PFK26_a+f_PGK_a+f_PYK_a-0.15*(7/4)*vPumpg-ATDMP.vATPasesg)/(1-dAMPdATPg)
     # du[UIdx.74] = 0
     du[UIdx.fum_m_a] = 0.5*GeneralConstants.T2Jcorrection*(1000*f_r0509_a/ETC.W_x-f_FUMm_a)
     du[UIdx.mal_L_m_a] = 0.5*GeneralConstants.T2Jcorrection*(f_FUMm_a-f_MDHm_a)
@@ -755,9 +780,9 @@ def compute_du(u, p, t):
     du[UIdx.pyr_c_n] = f_PYK_n-f_PYRt2m_n-f_LDH_L_n
     du[UIdx.pyr_c_a] = f_PYK_a-f_PYRt2m_a-f_LDH_L_a
     du[UIdx.lac_L_b_b] = f_notBigg_JLacTr_b-f_notBigg_MCT1_LAC_b-f_notBigg_vLACgc
-    du[UIdx.lac_L_e_e] = 0.0275*f_notBigg_MCT1_LAC_b-f_notBigg_MCT1_LAC_b-f_notBigg_MCT1_LAC_b+f_notBigg_jLacDiff_e
-    du[UIdx.lac_L_c_a] = 0.8*f_notBigg_MCT1_LAC_b+0.022*f_notBigg_vLACgc+f_LDH_L_a
-    du[UIdx.lac_L_c_n] = 0.44*f_notBigg_MCT1_LAC_b+f_LDH_L_n
+    du[UIdx.lac_L_e_e] = 0.0275*f_notBigg_MCT1_LAC_b-f_L_LACt2r_a-f_L_LACt2r_n+f_notBigg_jLacDiff_e
+    du[UIdx.lac_L_c_a] = 0.8*f_L_LACt2r_a+0.022*f_notBigg_vLACgc+f_LDH_L_a
+    du[UIdx.lac_L_c_n] = 0.44*f_L_LACt2r_n+f_LDH_L_n
     du[UIdx.nadph_c_n] = f_G6PDH2r_n+f_GND_n-f_notBigg_psiNADPHox_n-f_GTHO_n
     du[UIdx.nadph_c_a] = f_G6PDH2r_a+f_GND_a-f_notBigg_psiNADPHox_a-f_GTHO_a
     du[UIdx.n6pgl_c_n] = f_G6PDH2r_n-f_PGL_n
@@ -782,7 +807,7 @@ def compute_du(u, p, t):
     du[UIdx.pcreat_c_n] = -f_CKc_n
     # du[UIdx.creat_c_a] = 0
     du[UIdx.pcreat_c_a] = -f_CKc_a
-    du[UIdx.camp_c_a] = (u_ca2_c_a/Glycogen.cai0_ca_ion)*(1+GeneralConstants.xNEmod*(u[178]/(GeneralConstants.KdNEmod+u[178])))*f_ADNCYC_a-f_PDE1_a
+    du[UIdx.camp_c_a] = (u_ca2_c_a/Glycogen.cai0_ca_ion)*(1+GeneralConstants.xNEmod*(u_nrpphr_e_e/(GeneralConstants.KdNEmod+u_nrpphr_e_e)))*f_ADNCYC_a-f_PDE1_a
     # du[UIdx.nrpphr_e_e] = 0
     # du[UIdx.udpg_c_a] = 0
     # du[UIdx.utp_c_a] = 0
@@ -795,7 +820,7 @@ def compute_du(u, p, t):
 
 if __name__ == "__main__":
     # Create a dummy u array
-    from .initial_conditions import make_u0
+    from multiscale_run.metabolism.initial_conditions import make_u0
     u = make_u0()
     p = np.ones(PIdx.size) * 1.0  # dummy, unused in this simple test
     t = 0.0  # dummy time
@@ -803,18 +828,18 @@ if __name__ == "__main__":
     # Call compute_du
     du = compute_du(u, p, t)
 
-    # Print a few du values to check
-    print("u")
-    print(u)
-    print("p")
-    print(p)
-    print("t")
-    print(t)
-    print("du:")
-    for s, v in zip(UIdx.as_list(), du):
-        print(s, v)
-    print()
-    if np.any(np.isnan(du)):
-        print("There are nan values!")
-    if np.any(np.isinf(du)):
-        print("There are inf values!")
+    # # Print a few du values to check
+    # print("u")
+    # print(u)
+    # print("p")
+    # print(p)
+    # print("t")
+    # print(t)
+    # print("du:")
+    # for s, v in zip(UIdx.as_list(), du):
+    #     print(s, v)
+    # print()
+    # if np.any(np.isnan(du)):
+    #     print("There are nan values!")
+    # if np.any(np.isinf(du)):
+    #     print("There are inf values!")

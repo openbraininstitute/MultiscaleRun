@@ -1,6 +1,6 @@
 import numpy as np
 
-from .indexes import UIdx
+from multiscale_run.metabolism.indexes import UIdx
 
 
 def make_u0() -> np.ndarray:
@@ -189,5 +189,9 @@ def make_u0() -> np.ndarray:
     u0[UIdx.notBigg_GS_c_a] = 0.0029999
     u0[UIdx.notBigg_GPa_c_a] = 0.0013314628973952977
     u0[UIdx.notBigg_GPb_c_a] = 0.06866853710260439
+
+    u0[UIdx.placeholder0] = 0.047784
+    u0[UIdx.placeholder1] = 0.045
+    u0[UIdx.placeholder2] = 0.0237000024973173
 
     return u0

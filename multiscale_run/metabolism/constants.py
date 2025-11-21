@@ -1080,9 +1080,9 @@ class GeneralConstants:
     # CytCoxmito_a0 = #0.0588 # 80% Cooper PMID: 9620863  #ratio from PMID: 19029908, sum from JOHN B. CLARKE AND WILLIAM J. NICKLASS 1970 ratBrainMito.pdf  #also CytCredox and CuCCoxidase redox are close: doi:10.1371/journal.pcbi.1000212  #0.063 # CytCmito total = 0.07 mM JOHN B. CLARKE AND WILLIAM J. NICKLASS 1970 ratBrainMito.pdf and 10% cytc red from fig 5 febs.14151.pdf Heiske doi:10.1111/febs.14151 #0.02 #;0.21  #0.02 Zhang2018 # 0.21  #u140 #0.315006*(33.3506/50.0) = 0.21011278207200001 #0.09# #0.136275*(33.3506/50.0)= 0.09089706030000001 inferred from IvanChang steady state #0.0186
 
     # Additional costants that I have found in the simulation_config.json and can be changed more easily
-    xNEmod: float = 0.025,
-    KdNEmod: float = 3.0e-4,
-    Iinj: float = 0.0,
+    xNEmod: float = 0.025
+    KdNEmod: float = 3.0e-4
+    Iinj: float = 0.0
     synInput: float = 0.0
 
 
