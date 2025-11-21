@@ -9,7 +9,7 @@ from . import config, utils
 
 from scipy.integrate import solve_ivp
 
-from .metabolism import model
+from .metabolism import model, constants, initial_conditions
 
 
 class MsrMetabManagerException(Exception):
@@ -188,53 +188,6 @@ class MsrMetabolismManager:
             failed_cells[igid] = f"solver failed: {str(e)}"
             raise e
 
-
-    # @utils.logs_decorator
-    # def _advance_gid(self, igid: int, i_metab: int, failed_cells: list[str]):
-    #     """Advance metabolism simulation for gid: gids[igid].
-    #     Args:
-    #         igid: Index of the gid.
-    #         i_metab: metabolism, time step counter.
-    #         failed_cells: List of errors for the failed cells.
-    #             Cells that are alive have `None` as value here.
-    #     Raises:
-    #         MsrMetabManagerException: If sol is None.
-    #     """
-
-    #     metab_dt = self.config.metabolism_dt
-    #     tspan_m = (
-    #         1e-3 * float(i_metab) * metab_dt,
-    #         1e-3 * (float(i_metab) + 1.0) * metab_dt,
-    #     )
-
-    #     J = self.JMain
-    #     # Assign model and convert inputs
-    #     J.model = self.model
-    #     J.u0 = self.vm[igid, :].astype(float)
-    #     J.p = self.parameters[igid, :].astype(float)
-    #     J.tspan = tuple(float(x) for x in tspan_m)
-
-    #     try:
-    #         logging.info(f"   solve ODE problem {igid}/{self.ngids}")
-    #         J.eval("""
-    #             prob = ODEProblem(model, u0, tspan, p)
-    #             sol = solve(prob, Rosenbrock23(autodiff=false))
-    #         """)
-    #         retcode = J.eval("sol.retcode")
-    #         logging.info("   /solve ODE problem")
-
-    #         if str(retcode) != "<PyCall.jlwrap Success>":
-    #             utils.rank_print(f" !!! sol.retcode: {str(retcode)}")
-    #             failed_cells[igid] = f"solver failed: {str(retcode)}"
-    #         else:
-    #             self.vm[igid, :] = J.eval("sol.u[end]")
-
-    #     except Exception as e:
-    #         failed_cells[igid] = f"solver failed: {str(e)}"
-    #         raise e
-        
-    #     exit()
-
     @utils.logs_decorator
     def advance(self, i_metab: int, failed_cells: list) -> None:
         """Advance metabolism simulation
@@ -291,10 +244,11 @@ class MsrMetabolismManager:
         mito_scale_idx = MsrMetabolismParam.mito_scale.value
 
         ngids = len(raw_gids)
-        self.vm = np.tile(
-            pd.read_csv(metab_conf.u0_path, sep=",", header=None)[0].tolist(),
-            (ngids, 1),
-        )
+        self.vm = np.tile(initial_conditions.make_u0(), (ngids, 1))
+        # self.vm = np.tile(
+        #     pd.read_csv(metab_conf.u0_path, sep=",", header=None)[0].tolist(),
+        #     (ngids, 1),
+        # )
 
         self.parameters = np.tile(metab_conf.parameters, (ngids, 1))
 
