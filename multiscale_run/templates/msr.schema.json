@@ -176,9 +176,13 @@
           "description": "Constant necessary for the Metabolism manager of MultiscaleRun.",
           "type": "object"
         },
+        "u0": {
+          "description": "List of initial inputs of the Metabolism model. They are the inputs (except `vm`) in order of the main Julia model file. During initialization (before any advance for any simulator), the connections to `metabolism` may replace these values. In that case, and only in this case, the `merge` action is downgraded to a `set` action.",
+          "type": "object"
+        },
         "parameters": {
-          "description": "List of parameters of the Metabolism model. They are the inputs (except `vm`) in order of the main Julia model file. During initialization (before any advance for any simulator), the connections to `metabolism` may replace these values. In that case, and only in this case, the `merge` action is downgraded to a `set` action.",
-          "type": "array"
+          "description": "List of initial parameters of the Metabolism model. They are the inputs (except `vm`) of the model. During initialization (before any advance for any simulator), the connections to `metabolism` may replace these values. In that case, and only in this case, the `merge` action is downgraded to a `set` action.",
+          "type": "object"
         },
         "solver_kwargs": {
           "description": "Parameters for the solver of the Metabolism model. The solver is currently: `de.Rosenbrock23`.",

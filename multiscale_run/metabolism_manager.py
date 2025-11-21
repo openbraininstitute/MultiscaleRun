@@ -3,9 +3,12 @@ import logging
 
 import libsonata
 import numpy as np
-import pandas as pd
 
 from . import config, utils
+
+from scipy.integrate import solve_ivp
+
+from .metabolism import model, constants, initial_conditions, indexes
 
 
 class MsrMetabManagerException(Exception):
@@ -22,17 +25,8 @@ class MsrAbortSimulationException(Exception):
     """This error should not be recoverable. Something went very wrong and continuing the simulation is meaningless"""
 
 
-class MsrMetabolismParam(enum.Enum):
-    ina_density = 0
-    ik_density = 1
-    mito_scale = 2
-    bloodflow_Fin = 3
-    bloodflow_Fout = 4
-    bloodflow_vol = 5
-
-
 class MsrMetabolismManager:
-    """Wrapper to manage the metabolism julia model"""
+    """Wrapper to manage the metabolism model"""
 
     errors = {
         "abort_simulation": MsrAbortSimulationException,
@@ -49,12 +43,7 @@ class MsrMetabolismManager:
             gids: list of cells to reset.
         """
         self.config = config
-        from julia import Main as JMain
 
-        self.JMain = JMain
-        self.JMain.eval("using DifferentialEquations: ODEProblem, solve, Rosenbrock23")
-        self.load_metabolism_data()
-        self.gen_metabolism_model()
         self.vm = None  # read/write values for metab
         self.parameters = None  # read values for metab
         self.tspan_m = (-1, -1)
@@ -102,52 +91,16 @@ class MsrMetabolismManager:
         return [1] * self.parameters.shape[0]
 
     @utils.logs_decorator
-    def load_metabolism_data(self):
-        """Load metabolism data and parameters from Julia scripts.
-
-        This method loads metabolism data and parameters from Julia scripts if the metabolism type is "main".
-        """
-        # includes
-        cmd = (
-            "\n".join(
-                [
-                    f'include("{item}")'
-                    for item in self.config.multiscale_run.metabolism.model.includes
-                ]
-            )
-            + "\n"
-            + "\n".join(
-                [
-                    f"{k} = {v}"
-                    for k, v in self.config.multiscale_run.metabolism.model.constants.items()
-                ]
-            )
-        )
-        self.JMain.eval(cmd)
-
-    @utils.logs_decorator
-    def gen_metabolism_model(self):
-        """Generate the metabolism model from Julia code.
-
-        This method generates the metabolism model using Julia code.
-
-        Returns:
-            None
-        """
-        with open(str(self.config.multiscale_run.metabolism.julia_code_path), "r") as f:
-            julia_code = f.read()
-        self.model = self.JMain.eval(julia_code)
-
-    @utils.logs_decorator
     def _advance_gid(self, igid: int, i_metab: int, failed_cells: list[str]):
-        """Advance metabolism simulation for gid: gids[igid].
+        """Advance metabolism simulation for gid: gids[igid] using Python.
+
         Args:
             igid: Index of the gid.
             i_metab: metabolism, time step counter.
             failed_cells: List of errors for the failed cells.
                 Cells that are alive have `None` as value here.
         Raises:
-            MsrMetabManagerException: If sol is None.
+            MsrMetabManagerException: If solver fails.
         """
 
         metab_dt = self.config.metabolism_dt
@@ -156,27 +109,28 @@ class MsrMetabolismManager:
             1e-3 * (float(i_metab) + 1.0) * metab_dt,
         )
 
-        J = self.JMain
-        # Assign model and convert inputs
-        J.model = self.model
-        J.u0 = self.vm[igid, :].astype(float)
-        J.p = self.parameters[igid, :].astype(float)
-        J.tspan = tuple(float(x) for x in tspan_m)
+        u0 = self.vm[igid, :]
+        p = self.parameters[igid, :]
 
         try:
             logging.info(f"   solve ODE problem {igid}/{self.ngids}")
-            J.eval("""
-                prob = ODEProblem(model, u0, tspan, p)
-                sol = solve(prob, Rosenbrock23(autodiff=false))
-            """)
-            retcode = J.eval("sol.retcode")
+
+            # solve_ivp expects a function f(t, u)
+            sol = solve_ivp(
+                lambda t, u: model.compute_du(u, p, t),
+                tspan_m,
+                u0,
+                method="Radau",  # stiff solver like Rosenbrock23
+                vectorized=False,
+            )
+
             logging.info("   /solve ODE problem")
 
-            if str(retcode) != "<PyCall.jlwrap Success>":
-                utils.rank_print(f" !!! sol.retcode: {str(retcode)}")
-                failed_cells[igid] = f"solver failed: {str(retcode)}"
+            if not sol.success:
+                utils.rank_print(f" !!! solver failed: {sol.message}")
+                failed_cells[igid] = f"solver failed: {sol.message}"
             else:
-                self.vm[igid, :] = J.eval("sol.u[end]")
+                self.vm[igid, :] = sol.y[:, -1]
 
         except Exception as e:
             failed_cells[igid] = f"solver failed: {str(e)}"
@@ -213,9 +167,9 @@ class MsrMetabolismManager:
         """
         # layer_idx: layers are 1-based while python vectors are 0-based
         layer_idx = int(self.neuron_node_pop.get_attribute("layer", raw_gid)) - 1
-        glycogen_au = np.array(self.config.multiscale_run.metabolism.constants.glycogen_au)
+        glycogen_au = np.array(constants.Glycogen.au)
         mito_volume_fraction = np.array(
-            self.config.multiscale_run.metabolism.constants.mito_volume_fraction
+            constants.GeneralConstants.mito_volume_fraction
         )
         glycogen_scaled = glycogen_au * (14.0 / max(glycogen_au))
         mito_volume_fraction_scaled = mito_volume_fraction * (1.0 / max(mito_volume_fraction))
@@ -223,6 +177,7 @@ class MsrMetabolismManager:
             glycogen_scaled[layer_idx],
             mito_volume_fraction_scaled[layer_idx],
         )
+
 
     @utils.logs_decorator
     def reset(self, raw_gids: list[int]):
@@ -234,22 +189,50 @@ class MsrMetabolismManager:
         Returns:
             None
         """
-        metab_conf = self.config.multiscale_run.metabolism
-        mito_scale_idx = MsrMetabolismParam.mito_scale.value
-
+        self.reset_constants()
         ngids = len(raw_gids)
-        self.vm = np.tile(
-            pd.read_csv(metab_conf.u0_path, sep=",", header=None)[0].tolist(),
-            (ngids, 1),
-        )
+        self.reset_u0(ngids)
+        self.reset_parameters(raw_gids=raw_gids)
+        
+    def reset_u0(self, ngids):
+        metab_conf = self.config.multiscale_run.metabolism
+        u0 = initial_conditions.make_u0()
+        if "u0" in metab_conf:
+            initial_conditions.override(u0, indexes.UIdx, metab_conf.u0)
+        self.vm = np.tile(u0, (ngids, 1))
 
-        self.parameters = np.tile(metab_conf.parameters, (ngids, 1))
+    def reset_parameters(self, raw_gids: list[int]):
+        metab_conf = self.config.multiscale_run.metabolism
+        p0 = initial_conditions.make_parameters()
+        if "parameters" in metab_conf:
+            initial_conditions.override(p0, indexes.PIdx, metab_conf.parameters)
+        self.parameters = np.tile(p0, (len(raw_gids), 1))
+        # auto-override if not specifically stated in the conf
+        if "mito_scale" not in metab_conf.parameters:
+            self.parameters[:, indexes.PIdx.mito_scale] = [
+                self._get_GLY_a_and_mito_vol_frac(c_gid)[1] for c_gid in raw_gids
+            ]
 
-        # TODO this may be made more general. Atm it has low priority.
+    def reset_constants(self):
+        metab_conf = self.config.multiscale_run.metabolism
+        for cls_name, fields in metab_conf.constants.items():
+            # Will throw if class doesn't exist
+            cls = getattr(constants, cls_name)  
 
-        self.parameters[:, mito_scale_idx] = [
-            self._get_GLY_a_and_mito_vol_frac(c_gid)[1] for c_gid in raw_gids
-        ]
+            # Get the allowed dataclass fields
+            if not hasattr(cls, "__dataclass_fields__"):
+                raise TypeError(f"{cls_name} is not a dataclass")
+
+            allowed_keys = cls.__dataclass_fields__.keys()
+
+            for key, value in fields.items():
+                if key not in allowed_keys:
+                    raise AttributeError(
+                        f"{cls_name} has no attribute '{key}'. Available keys: {list(allowed_keys)}"
+                    )
+                if isinstance(value, list):
+                    value = tuple(value)
+                setattr(cls, key, value)
 
     def _check_input_for_currently_valid_gids(
         self,
