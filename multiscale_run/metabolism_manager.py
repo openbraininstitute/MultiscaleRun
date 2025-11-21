@@ -3,7 +3,6 @@ import logging
 
 import libsonata
 import numpy as np
-import pandas as pd
 
 from . import config, utils
 
@@ -27,7 +26,7 @@ class MsrAbortSimulationException(Exception):
 
 
 class MsrMetabolismManager:
-    """Wrapper to manage the metabolism julia model"""
+    """Wrapper to manage the metabolism model"""
 
     errors = {
         "abort_simulation": MsrAbortSimulationException,
@@ -44,12 +43,7 @@ class MsrMetabolismManager:
             gids: list of cells to reset.
         """
         self.config = config
-        from julia import Main as JMain
 
-        self.JMain = JMain
-        self.JMain.eval("using DifferentialEquations: ODEProblem, solve, Rosenbrock23")
-        self.load_metabolism_data()
-        self.gen_metabolism_model()
         self.vm = None  # read/write values for metab
         self.parameters = None  # read values for metab
         self.tspan_m = (-1, -1)
@@ -95,43 +89,6 @@ class MsrMetabolismManager:
         All the gids present are still alive.
         """
         return [1] * self.parameters.shape[0]
-
-    @utils.logs_decorator
-    def load_metabolism_data(self):
-        """Load metabolism data and parameters from Julia scripts.
-
-        This method loads metabolism data and parameters from Julia scripts if the metabolism type is "main".
-        """
-        # includes
-        cmd = (
-            "\n".join(
-                [
-                    f'include("{item}")'
-                    for item in self.config.multiscale_run.metabolism.model.includes
-                ]
-            )
-            + "\n"
-            + "\n".join(
-                [
-                    f"{k} = {v}"
-                    for k, v in self.config.multiscale_run.metabolism.model.constants.items()
-                ]
-            )
-        )
-        self.JMain.eval(cmd)
-
-    @utils.logs_decorator
-    def gen_metabolism_model(self):
-        """Generate the metabolism model from Julia code.
-
-        This method generates the metabolism model using Julia code.
-
-        Returns:
-            None
-        """
-        with open(str(self.config.multiscale_run.metabolism.julia_code_path), "r") as f:
-            julia_code = f.read()
-        self.model = self.JMain.eval(julia_code)
 
     @utils.logs_decorator
     def _advance_gid(self, igid: int, i_metab: int, failed_cells: list[str]):
@@ -220,9 +177,6 @@ class MsrMetabolismManager:
             glycogen_scaled[layer_idx],
             mito_volume_fraction_scaled[layer_idx],
         )
-    
-    def reset_u(self, ngids):
-        self.vm = np.tile(initial_conditions.make_u0(), (ngids, 1))
 
 
     @utils.logs_decorator
