@@ -190,8 +190,8 @@ def make_u0() -> np.ndarray:
     u0[UIdx.notBigg_GPa_c_a] = 0.0013314628973952977
     u0[UIdx.notBigg_GPb_c_a] = 0.06866853710260439
 
-    u0[UIdx.placeholder0] = 0.047784
-    u0[UIdx.placeholder1] = 0.045
-    u0[UIdx.placeholder2] = 0.0237000024973173
+    # u0[UIdx.placeholder0] = 0.047784 #24
+    # u0[UIdx.placeholder1] = 0.045 #74
+    # u0[UIdx.placeholder2] = 0.0237000024973173 #111
 
     return u0
