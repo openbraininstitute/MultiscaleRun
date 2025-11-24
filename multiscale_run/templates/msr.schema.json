@@ -138,40 +138,6 @@
           "type": "integer",
           "description": "Time step of the simulator. Measured in number of Neurodamus time steps."
         },
-        "u0_path": {
-          "type": "string",
-          "description": "Path to the CSV file providing the initial values of the Metabolism model."
-        },
-        "julia_code_path": {
-          "type": "string",
-          "description": "Path to the main Julia model file."
-        },
-        "model": {
-          "type": "object",
-          "description": "Provides additional variables to the Metabolism model.",
-          "additionalProperties": false,
-          "properties": {
-            "model_path": {
-              "type": "string",
-              "description": "Base path to the additional includes."
-            },
-            "pardir_path": {
-              "type": "string",
-              "description": "Base path to the additional parameters required by the Metabolism model."
-            },
-            "includes": {
-              "description": "Additional includes required for the main Julia model to function.",
-              "type": "array",
-              "items": {
-                "type": "string"
-              }
-            },
-            "constants": {
-              "description": "Additional constants required by the julia model.",
-              "type": "object"
-            }
-          }
-        },
         "constants": {
           "description": "Constant necessary for the Metabolism manager of MultiscaleRun.",
           "type": "object"
@@ -198,10 +164,7 @@
         }
       },
       "required": [
-        "julia_code_path",
-        "model",
-        "ndts",
-        "u0_path"
+        "ndts"
       ]
     },
     "steps": {

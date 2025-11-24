@@ -120,8 +120,8 @@ class MsrMetabolismManager:
                 lambda t, u: model.compute_du(u, p, t),
                 tspan_m,
                 u0,
-                method="Radau",  # stiff solver like Rosenbrock23
                 vectorized=False,
+                **self.config.multiscale_run.metabolism.solver_kwargs
             )
 
             logging.info("   /solve ODE problem")
