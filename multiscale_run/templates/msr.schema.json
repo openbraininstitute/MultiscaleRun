@@ -158,8 +158,8 @@
           "description": "This a list of checks that are performed on the Metabolism inputs (parameters and vm) for every Metabolism time steps to verify integrity of the inputs. Items are optional. The parameters and vms that are not mentioned in this list are still checked to be normal numbers (no inf, nan is allowed). For example:",
           "type": "object",
             "properties": {
-              "parameters": {"$ref":  "#/$defs/bloodflow_check"},
-              "vm": {"$ref":  "#/$defs/bloodflow_check"}
+              "parameters": {"$ref":  "#/$defs/input_check"},
+              "vm": {"$ref":  "#/$defs/input_check"}
             }
         }
       },
@@ -334,50 +334,32 @@
         ]
       }
     },
-    "bloodflow_check": {
+    "input_check": {
       "type": "object",
       "additionalProperties": false,
       "unevaluatedProperties": false,
       "patternProperties": {
-        "^[0-9]+$":{
+        "^[A-Za-z_][A-Za-z0-9_]*$": {
           "type": "object",
+          "additionalProperties": false,
           "properties": {
-            "name": {
-              "description": "Name of the parameter. Effectively unused in the simulation. Useful for the operator.",
-              "type": "string"
-            },
             "kwargs": {
               "description": "Arguments of the checking routine. Its entries are optional.",
               "type": "object",
               "additionalProperties": false,
               "properties": {
-                "lb": {
-                  "type": "number",
-                  "description": "Lower bound."
-                },
-                "leb": {
-                  "type": "number",
-                  "description": "Lower or equal bound."
-                },
-                "hb": {
-                  "type": "number",
-                  "description": "Higher bound"
-                },
-                "heb": {
-                  "type": "number",
-                  "description": "Higher or equal bound"
-                }
+                "lb":  { "type": "number" },
+                "leb": { "type": "number" },
+                "hb":  { "type": "number" },
+                "heb": { "type": "number" }
               }
             },
             "response": {
-              "description": "Response applied if one of the values does not pass the check.",
+              "description": "Response applied if the value does not pass the check.",
               "type": "string"
             }
           },
-          "required": [
-            "name",
-            "response"
-          ]
+          "required": ["response"]
         }
       }
     },

@@ -802,7 +802,6 @@ def check_value(
         MsrException: If the value is None, not floatable, NaN, or outside the specified bounds. Custom exception otherwise.
 
     """
-    msg = msg if msg is not None else f"{get_var_name(1, 0)}"
 
     if v is None:
         raise MsrException(msg + f" ({v}) is None")

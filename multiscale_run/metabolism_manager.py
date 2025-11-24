@@ -50,7 +50,8 @@ class MsrMetabolismManager:
         self.neuron_node_pop = libsonata.CircuitConfig.from_file(
             str(self.config.config_path.parent / self.config.network)
         ).node_population(neuron_pop_name)
-        self.reset(raw_gids)
+        self.raw_gids = raw_gids
+        self.reset()
 
     def get_error(self, key: str):
         try:
@@ -63,7 +64,7 @@ class MsrMetabolismManager:
     @property
     def ngids(self):
         """Gid number"""
-        return self.parameters.shape[0]
+        return len(self.raw_gids)
 
     def set_parameters_idxs(self, vals: list[float], idxs: list[int]):
         """Set one or more parameters slices equal to the vals list"""
@@ -180,37 +181,30 @@ class MsrMetabolismManager:
 
 
     @utils.logs_decorator
-    def reset(self, raw_gids: list[int]):
+    def reset(self):
         """Reset the parameters and initial conditions for metabolic simulation.
-
-        Args:
-            raw_gids: List of cells to reset without offset.
-
-        Returns:
-            None
         """
         self.reset_constants()
-        ngids = len(raw_gids)
-        self.reset_u0(ngids)
-        self.reset_parameters(raw_gids=raw_gids)
+        self.reset_u0()
+        self.reset_parameters()
         
-    def reset_u0(self, ngids):
+    def reset_u0(self):
         metab_conf = self.config.multiscale_run.metabolism
         u0 = initial_conditions.make_u0()
         if "u0" in metab_conf:
             initial_conditions.override(u0, indexes.UIdx, metab_conf.u0)
-        self.vm = np.tile(u0, (ngids, 1))
+        self.vm = np.tile(u0, (self.ngids, 1))
 
-    def reset_parameters(self, raw_gids: list[int]):
+    def reset_parameters(self):
         metab_conf = self.config.multiscale_run.metabolism
         p0 = initial_conditions.make_parameters()
         if "parameters" in metab_conf:
             initial_conditions.override(p0, indexes.PIdx, metab_conf.parameters)
-        self.parameters = np.tile(p0, (len(raw_gids), 1))
+        self.parameters = np.tile(p0, (self.ngids, 1))
         # auto-override if not specifically stated in the conf
         if "mito_scale" not in metab_conf.parameters:
             self.parameters[:, indexes.PIdx.mito_scale] = [
-                self._get_GLY_a_and_mito_vol_frac(c_gid)[1] for c_gid in raw_gids
+                self._get_GLY_a_and_mito_vol_frac(c_gid)[1] for c_gid in self.raw_gids
             ]
 
     def reset_constants(self):
@@ -234,90 +228,34 @@ class MsrMetabolismManager:
                     value = tuple(value)
                 setattr(cls, key, value)
 
-    def _check_input_for_currently_valid_gids(
-        self,
-        vec: np.ndarray,
-        check_value_kwargs: dict,
-        err,
-        msg_func,
-        failed_cells: list[str],
-    ):
-        """Check input values for every valid gid.
+    def _check_input(self, v, conf, input_type, input_name, msg, failed_cells):
 
-        Args:
-            vec: Input array.
-            check_value_kwargs: Keyword arguments for value checking.
-            err: Error argument.
-            msg_func: Message argument. It is a callable that requires the gid.
-            failed_cells: List of failed cells.
-
-        Notes:
-            `check_value` can throw exceptions. `MsrExcludeNeuronException` is recoverable by marking
-            the neuron as broken and kicking it out of the simulation. The others are not.
-        """
         for igid in range(self.ngids):
             if failed_cells[igid] is not None:
                 continue
+            idx = getattr(input_type, input_name)
+            kwargs = conf.get("kwargs", {})
+            err = self.get_error(conf.get("response", "abort_simulation"))
+            gid = self.raw_gids[igid]
+            msg += f".{input_name} (gid: {gid}) ({idx}): "
+            for igid in range(self.ngids):
+                if failed_cells[igid] is not None:
+                    continue
+                try:
+                    utils.check_value(v=v[igid, idx], **kwargs, err=err, msg=msg)
+                except MsrExcludeNeuronException as e:
+                    failed_cells[igid] = str(e)
 
-            try:
-                utils.check_value(v=vec[igid], **check_value_kwargs, err=err, msg=msg_func(igid))
-            except MsrExcludeNeuronException as e:
-                failed_cells[igid] = str(e)
 
     @utils.logs_decorator
     def check_inputs(self, failed_cells: list[str]) -> None:
-        """Check that some values stay in the prescribed bands
+        metab_conf = self.config.multiscale_run.metabolism
+        if "checks" not in metab_conf:
+            return
+        if "parameters" in metab_conf.checks:
+            for parameter_name, conf in metab_conf.checks.parameters.items():
+                    self._check_input(v=self.parameters, input_type=indexes.PIdx, input_name=parameter_name, conf=conf, msg="paramter", failed_cells=failed_cells)
 
-        Loop over the inputs that require checking. Print in the logging for the same VIP values.
-        If no checking is specified in the config file just check that the values are still proper floats.
-
-        Args:
-            failed_cells: List of errors for the failed cells. Cells that are alive have `None` as value here.
-        """
-        base_ck_conf = {"kwargs": {}, "response": "abort_simulation", "name": ""}
-
-        d = self.config.multiscale_run.metabolism.checks.parameters
-        checks = [d.get(str(idx), base_ck_conf) for idx in range(self.parameters.shape[1])]
-
-        for idx, ck_conf in enumerate(checks):
-
-            def msg_func(igid):
-                return f"parameters[{igid}, {idx}], {ck_conf['name']}"
-
-            self._check_input_for_currently_valid_gids(
-                vec=self.parameters[:, idx],
-                check_value_kwargs=ck_conf["kwargs"],
-                err=self.get_error(ck_conf["response"]),
-                msg_func=msg_func,
-                failed_cells=failed_cells,
-            )
-            if str(idx) in self.config.multiscale_run.metabolism.checks.parameters:
-                name = ck_conf["name"]
-                utils.log_stats(
-                    vec=self.parameters[:, idx],
-                    **ck_conf["kwargs"],
-                    msg=f"parameters[:,  {idx}], {name}{' ' * (16 - len(name))}",
-                )
-
-        d = self.config.multiscale_run.metabolism.checks.vm
-        checks = [d.get(str(idx), base_ck_conf) for idx in range(self.vm.shape[1])]
-
-        for idx, ck_conf in enumerate(checks):
-
-            def msg_func(igid):
-                return f"vm[{igid}, {idx}], {ck_conf['name']}"
-
-            self._check_input_for_currently_valid_gids(
-                vec=self.vm[:, idx],
-                check_value_kwargs=ck_conf["kwargs"],
-                err=self.get_error(ck_conf["response"]),
-                msg_func=msg_func,
-                failed_cells=failed_cells,
-            )
-            if str(idx) in self.config.multiscale_run.metabolism.checks.vm:
-                name = ck_conf["name"]
-                utils.log_stats(
-                    vec=self.vm[:, idx],
-                    **ck_conf["kwargs"],
-                    msg=f"    vm[:, {idx}], {name}{' ' * (16 - len(name))}",
-                )
+        if "vm" in metab_conf.checks:
+            for vm_name, conf in metab_conf.checks.vm.items():
+                    self._check_input(v=self.vm, input_type=indexes.UIdx, input_name=vm_name, conf=conf, msg="vm", failed_cells=failed_cells)
