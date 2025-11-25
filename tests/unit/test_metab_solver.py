@@ -1,9 +1,8 @@
-from multiscale_run.metabolism import model, initial_conditions
-from multiscale_run.metabolism.indexes import UIdx
-from scipy.integrate import solve_ivp
 import numpy as np
+from scipy.integrate import solve_ivp
 
-
+from multiscale_run.metabolism import initial_conditions, model
+from multiscale_run.metabolism.indexes import UIdx
 
 # def report_differences(a, b, tol=1e-6):
 #     a = np.asarray(a, float)

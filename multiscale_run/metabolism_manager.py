@@ -3,12 +3,10 @@ import logging
 
 import libsonata
 import numpy as np
-
-from . import config, utils
-
 from scipy.integrate import solve_ivp
 
-from .metabolism import model, constants, initial_conditions, indexes
+from . import config, utils
+from .metabolism import constants, indexes, initial_conditions, model
 
 
 class MsrMetabManagerException(Exception):

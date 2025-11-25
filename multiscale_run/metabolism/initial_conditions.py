@@ -1,6 +1,6 @@
 import numpy as np
 
-from multiscale_run.metabolism.indexes import UIdx, PIdx
+from multiscale_run.metabolism.indexes import PIdx, UIdx
 
 
 def make_u0() -> np.ndarray:
