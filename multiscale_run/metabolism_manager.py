@@ -312,9 +312,10 @@ class MsrMetabolismManager:
         Validate a specific input field across all gids.
 
         Arguments:
-            v:            2D array (ngids × nvars or nparams) containing values to check.
+            v:            2D array (ngids x nvars or nparams) containing values to check
+                          (self.paramters or self.vm).
             conf:         Configuration dict for this check (kwargs, response policy, etc.).
-            input_type:   Enum-like class providing the index (e.g., PIdx or UIdx).
+            input_type:   Enum-like class providing the index (PIdx or UIdx).
             input_name:   Name of the field to check.
             msg:          Base message prefix for error reporting.
             failed_cells: List tracking gids excluded due to validation failures.
