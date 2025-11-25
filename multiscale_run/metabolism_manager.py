@@ -65,23 +65,38 @@ class MsrMetabolismManager:
     def ngids(self):
         """Gid number"""
         return len(self.raw_gids)
+    
+    @staticmethod
+    def _strIdx2idx(idx_type, idxs):
+        """Convert string index to actual index based on PIdx or UIdx"""
+        if not isinstance(idxs, list):
+            return getattr(idx_type, idxs)
+        return [getattr(idx_type, i) for i in idxs]
 
-    def set_parameters_idxs(self, vals: list[float], idxs: list[int]):
+    def set_parameters_idxs(self, vals: list[float], idxs: list[str] | str):
         """Set one or more parameters slices equal to the vals list"""
+        if not isinstance(idxs, list):
+            idxs = [idxs]
+        idxs = self._strIdx2idx(indexes.PIdx, idxs)
         for idx in idxs:
             self.parameters[:, idx] = vals
 
-    def set_vm_idxs(self, vals, idxs):
+    def set_vm_idxs(self, vals, idxs: list[str] | str):
         """Set one or more vm slices equal to the vals list"""
+        if not isinstance(idxs, list):
+            idxs = [idxs]
+        idxs = self._strIdx2idx(indexes.UIdx, idxs)
         for idx in idxs:
             self.vm[:, idx] = vals
 
-    def get_parameters_idx(self, idx):
+    def get_parameters_idx(self, idx: str):
         """Get parameters slice"""
+        idx = self._strIdx2idx(indexes.PIdx, idx)
         return self.parameters[:, idx]
 
-    def get_vm_idx(self, idx):
+    def get_vm_idx(self, idx: str):
         """Get vm slice"""
+        idx = self._strIdx2idx(indexes.UIdx, idx)
         return self.vm[:, idx]
 
     def alive_gids(self):

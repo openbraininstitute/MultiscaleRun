@@ -828,18 +828,3 @@ if __name__ == "__main__":
     # Call compute_du
     du = compute_du(u, p, t)
 
-    # # Print a few du values to check
-    # print("u")
-    # print(u)
-    # print("p")
-    # print(p)
-    # print("t")
-    # print(t)
-    # print("du:")
-    # for s, v in zip(UIdx.as_list(), du):
-    #     print(s, v)
-    # print()
-    # if np.any(np.isnan(du)):
-    #     print("There are nan values!")
-    # if np.any(np.isinf(du)):
-    #     print("There are inf values!")

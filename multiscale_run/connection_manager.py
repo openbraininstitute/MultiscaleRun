@@ -217,9 +217,8 @@ class MsrConnectionManager:
 
         match action:
             case "set":
-                vals = getattr(self.managers[con.src_simulator], con.src_get_func)(
-                    **con.src_get_kwargs
-                )
+                vals = ndam_m.get_var(**con.src_get_kwargs)
+
                 # apply standard transformations
                 vals = self.nXnsegMatBool.dot(vals)
                 vals = np.divide(vals, ndam_m.nc_weights[con.src_get_kwargs.weight][0])
@@ -240,9 +239,8 @@ class MsrConnectionManager:
                     return
 
                 # Collect and adapt vals from src
-                vals = getattr(self.managers[con.src_simulator], con.src_get_func)(
-                    **con.src_get_kwargs
-                )
+                vals = ndam_m.get_var(**con.src_get_kwargs)
+
                 # apply standard transformations
                 vals = self.nXnsegMatBool.dot(vals)
                 vals = np.divide(vals, ndam_m.nc_weights[con.src_get_kwargs.weight][0])
