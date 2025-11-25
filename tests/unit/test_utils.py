@@ -180,7 +180,7 @@ def test_check_value():
         a = 3
         utils.check_value(a, heb=0)
 
-    assert str(exc_info.value) == "a (3) >= 0"
+    assert str(exc_info.value) == "(3) >= 0"
 
     class CustomException(Exception):
         pass

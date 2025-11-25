@@ -785,7 +785,7 @@ def check_value(
     leb: float = -float("inf"),
     heb: float = float("inf"),
     err: Exception = MsrException,
-    msg: str = None,
+    msg: str = "",
 ):
     """Check if a value is within specified bounds and raising an exception if it's not.
 
@@ -802,26 +802,28 @@ def check_value(
         MsrException: If the value is None, not floatable, NaN, or outside the specified bounds. Custom exception otherwise.
 
     """
+    if msg:
+        msg += ": "
 
     if v is None:
-        raise MsrException(msg + f" ({v}) is None")
+        raise MsrException(f"{msg}({v}) is None")
     try:
         float(v)
     except ValueError:
-        raise MsrException(msg + f" ({v}) is not floatable")
+        raise MsrException(f"{msg}({v}) is not floatable")
     if np.isnan(v):
-        raise MsrException(msg + f" ({v}) is NaN")
+        raise MsrException(f"{msg}({v}) is NaN")
     if np.isinf(v):
-        raise MsrException(msg + f" ({v}) is Inf")
+        raise MsrException(f"{msg}({v}) is Inf")
 
     if v < lb:
-        raise err(f"{msg} ({v}) < {lb}")
+        raise err(f"{msg}({v}) < {lb}")
     if v > hb:
-        raise err(f"{msg} ({v}) > {hb}")
+        raise err(f"{msg}({v}) > {hb}")
     if v <= leb:
-        raise err(f"{msg} ({v}) <= {leb}")
+        raise err(f"{msg}({v}) <= {leb}")
     if v >= heb:
-        raise err(f"{msg} ({v}) >= {heb}")
+        raise err(f"{msg}({v}) >= {heb}")
 
 
 @contextlib.contextmanager
