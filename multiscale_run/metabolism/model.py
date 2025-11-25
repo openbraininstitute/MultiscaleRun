@@ -447,7 +447,13 @@ def compute_du(u, p, t):
     f_ASPTAm_n = MAS.VfAAT_n*(u_asp_L_m_n*u_akg_m_n-u_oaa_m_n*u_glu_L_m_n/MAS.KeqAAT_n)/(MAS.KmAKG_AAT_n*u_asp_L_m_n+MAS.KmASP_AAT_n*(1.0+u_akg_m_n/MAS.KiAKG_AAT_n)*u_akg_m_n+u_asp_L_m_n*u_akg_m_n+MAS.KmASP_AAT_n*u_akg_m_n*u_glu_L_m_n/MAS.KiGLU_AAT_n+(MAS.KiASP_AAT_n*MAS.KmAKG_AAT_n/(MAS.KmOXA_AAT_n*MAS.KiGLU_AAT_n))*(MAS.KmGLU_AAT_n*u_asp_L_m_n*u_oaa_m_n/MAS.KiASP_AAT_n+u_oaa_m_n*u_glu_L_m_n+MAS.KmGLU_AAT_n*(1.0+u_akg_m_n/MAS.KiAKG_AAT_n)*u_oaa_m_n+MAS.KmOXA_AAT_n*u_glu_L_m_n))
     f_MDH_n = MAS.VmaxcMDH_n*(u_mal_L_c_n*u_nad_c_n-u_oaa_c_n*u_nadh_c_n/MAS.Keqcmdh_n)/((1+u_mal_L_c_n/MAS.Kmmalcmdh_n)*(1+u_nad_c_n/MAS.Kmnadcmdh_n)+(1+u_oaa_c_n/MAS.Kmoxacmdh_n)*(1+u_nadh_c_n/MAS.Kmnadhcmdh_n)-1)
     f_ASPTA_n = MAS.VfCAAT_n*(u_asp_L_c_n*u_akg_c_n-u_oaa_c_n*u_glu_L_c_n/MAS.KeqCAAT_n)/(MAS.KmAKG_CAAT_n*u_asp_L_c_n+MAS.KmASP_CAAT_n*(1.0+u_akg_c_n/MAS.KiAKG_CAAT_n)*u_akg_c_n+u_asp_L_c_n*u_akg_c_n+MAS.KmASP_CAAT_n*u_akg_c_n*u_glu_L_c_n/MAS.KiGLU_CAAT_n+(MAS.KiASP_CAAT_n*MAS.KmAKG_CAAT_n/(MAS.KmOXA_CAAT_n*MAS.KiGLU_CAAT_n))*(MAS.KmGLU_CAAT_n*u_asp_L_c_n*u_oaa_c_n/MAS.KiASP_CAAT_n+u_oaa_c_n*u_glu_L_c_n+MAS.KmGLU_CAAT_n*(1.0+u_akg_c_n/MAS.KiAKG_CAAT_n)*u_oaa_c_n+MAS.KmOXA_CAAT_n*u_glu_L_c_n))
-    f_ASPGLUm_n = MAS.Vmaxagc_n*(u_asp_L_m_n*u_glu_L_c_n-u_asp_L_c_n*u_glu_L_m_n/((np.exp(u_notBigg_MitoMembrPotent_m_n*GeneralConstants.F/(GeneralConstants.R*GeneralConstants.T)))*(u_h_c_n/u_h_m_n)))/((u_asp_L_m_n+MAS.Km_aspmito_agc_n)*(u_glu_L_c_n+MAS.Km_glu_agc_n)+(u_asp_L_c_n+MAS.Km_asp_agc_n)*(u_glu_L_m_n+MAS.Km_glumito_agc_n))
+
+
+    exp_arg = u_notBigg_MitoMembrPotent_m_n*GeneralConstants.F/(GeneralConstants.R*GeneralConstants.T)
+    exp_arg = np.clip(exp_arg, None, 700.0)
+    exp_term = u_asp_L_c_n*u_glu_L_m_n/((np.exp(exp_arg))*(u_h_c_n/u_h_m_n))
+    f_ASPGLUm_n = MAS.Vmaxagc_n*(u_asp_L_m_n*u_glu_L_c_n-exp_term)/((u_asp_L_m_n+MAS.Km_aspmito_agc_n)*(u_glu_L_c_n+MAS.Km_glu_agc_n)+(u_asp_L_c_n+MAS.Km_asp_agc_n)*(u_glu_L_m_n+MAS.Km_glumito_agc_n))
+
     f_AKGMALtm_n = MAS.Vmaxmakgc_n*(u_mal_L_c_n*u_akg_m_n-u_mal_L_m_n*u_akg_c_n)/((u_mal_L_c_n+MAS.Km_mal_mkgc_n)*(u_akg_m_n+MAS.Km_akgmito_mkgc_n)+(u_mal_L_m_n+MAS.Km_malmito_mkgc_n)*(u_akg_c_n+MAS.Km_akg_mkgc_n))
     f_r0509_a = ETC.x_DH_a*(ETC.r_DH_a*NAD_x_a-(1e-3*u_nadh_m_a))*((1+(1e-3*u_pi_m_a)/ETC.k_Pi1)/(1+(1e-3*u_pi_m_a)/ETC.k_Pi2))
     f_NADH2_u10mi_a = ETC.x_C1*(np.exp(-(dG_C1op_a+4*dG_H_a)/ETC.etcRT)*(1e-3*u_nadh_m_a)*Q_a-NAD_x_a*(1e-3*u_q10h2_m_a))

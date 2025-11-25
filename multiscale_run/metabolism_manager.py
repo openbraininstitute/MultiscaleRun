@@ -34,18 +34,48 @@ class MsrMetabolismManager:
     }
 
     def __init__(self, config, neuron_pop_name: str, raw_gids: list[int]):
-        """Initialize the MsrMetabolismManager.
+        """
+        Initialize the MsrMetabolismManager.
 
         Args:
-            config: The configuration for the metabolism manager.
-            main: An instance of the main class.
-            neuron_pop_name: The name of the neuron population.
-            gids: list of cells to reset.
+            config: Full multiscale configuration object controlling metabolism behavior.
+            neuron_pop_name: Name of the neuron population to which these gids belong.
+            raw_gids: List of cell gids managed by this metabolism instance.
+
+        Concepts:
+            vm:
+                2D array of shape (ngids x nu0).
+                Represents the *dynamic state variables* of the metabolism model.
+                It is initialized from the model's default u0 vector and updated over time.
+
+            u0:
+                The default initial state vector of the metabolism model.
+                Defines the starting membrane and metabolic variables for a single cell
+                before tiling to all gids. At t0 `vm` is essentially the per-gid copy of u0.
+                After, vm evolves from that.
+
+            parameters:
+                2D array of shape (ngids  nparams).
+                Contains per-cell biophysical parameters controlling reaction rates,
+                transport coefficients, volumes, scaling factors, etc.
+                Starts from a default parameter vector and may be overridden by config.
+
+                Differently from vm it does not evolve in the metabolism model. However,
+                it may change in neurodamus or other parts of the code.
+
+            constants:
+                A collection of dataclass-based, global immutable values used by the
+                metabolism equations. These define universal physical constants,
+                stoichiometric coefficients, geometry-independent factors, etc.
+                They can be selectively overridden via the configuration.
+
+                They should not change during the simulation.
+
         """
         self.config = config
 
-        self.vm = None  # read/write values for metab
-        self.parameters = None  # read values for metab
+        self.vm = None  
+        self.parameters = None 
         self.tspan_m = (-1, -1)
         self.neuron_node_pop = libsonata.CircuitConfig.from_file(
             str(self.config.config_path.parent / self.config.network)
@@ -204,6 +234,15 @@ class MsrMetabolismManager:
         self.reset_parameters()
         
     def reset_u0(self):
+        """
+        Initialize the initial input vector (u0) for all gids.
+
+        - Builds the default u0 vector via `initial_conditions.make_u0()`.
+        - Applies per-model overrides if `metabolism.u0` is present in the config.
+        - Tiles the resulting vector to shape (ngids, nvars) and stores it in `self.vm`.
+
+        This resets the *dynamic* state variables to their initial values.
+        """
         metab_conf = self.config.multiscale_run.metabolism
         u0 = initial_conditions.make_u0()
         if "u0" in metab_conf:
@@ -211,6 +250,19 @@ class MsrMetabolismManager:
         self.vm = np.tile(u0, (self.ngids, 1))
 
     def reset_parameters(self):
+        """
+        Initialize parameter vectors for all gids.
+
+        - Builds the default parameter vector via `initial_conditions.make_parameters()`.
+        - Applies config overrides when `metabolism.parameters` is provided.
+        - Tiles the parameter vector to (ngids, nparams) and stores it in `self.parameters`.
+
+        Automatic rule:
+        If `mito_scale` is not explicitly set in the config, compute it per-gid using
+        `_get_GLY_a_and_mito_vol_frac()` and override the corresponding column.
+
+        This resets *biophysical parameters* while allowing selective overrides.
+        """
         metab_conf = self.config.multiscale_run.metabolism
         p0 = initial_conditions.make_parameters()
         if "parameters" in metab_conf:
@@ -223,6 +275,20 @@ class MsrMetabolismManager:
             ]
 
     def reset_constants(self):
+        """
+        Override constant dataclass fields defined under `metabolism.constants`.
+
+        For each class name:
+        - Retrieve the corresponding class from `constants`.
+        - Ensure it is a dataclass.
+        - Validate that all provided keys exist on the dataclass.
+        - Convert list values to tuples.
+        - Apply overrides via `setattr`.
+
+        Raises:
+            TypeError: if the target class is not a dataclass.
+            AttributeError: if an override key does not exist on the dataclass.
+        """
         metab_conf = self.config.multiscale_run.metabolism
         for cls_name, fields in metab_conf.constants.items():
             # Will throw if class doesn't exist
@@ -244,7 +310,23 @@ class MsrMetabolismManager:
                 setattr(cls, key, value)
 
     def _check_input(self, v, conf, input_type, input_name, msg, failed_cells):
+        """
+        Validate a specific input field across all gids.
 
+        Arguments:
+            v:            2D array (ngids × nvars or nparams) containing values to check.
+            conf:         Configuration dict for this check (kwargs, response policy, etc.).
+            input_type:   Enum-like class providing the index (e.g., PIdx or UIdx).
+            input_name:   Name of the field to check.
+            msg:          Base message prefix for error reporting.
+            failed_cells: List tracking gids excluded due to validation failures.
+
+        Behavior:
+            - Skips gids already marked as failed.
+            - Retrieves index of the field.
+            - Validates each value using `utils.check_value()`.
+            - Marks gids as failed if `MsrExcludeNeuronException` is raised.
+        """
         for igid in range(self.ngids):
             if failed_cells[igid] is not None:
                 continue
@@ -264,6 +346,15 @@ class MsrMetabolismManager:
 
     @utils.logs_decorator
     def check_inputs(self, failed_cells: list[str]) -> None:
+        """
+        Run all configured input validations for parameters and vm.
+
+        - Reads `metabolism.checks` from the config.
+        - Delegates each individual check to `_check_input`.
+        - Populates `failed_cells` with error messages for gids that fail.
+
+        If no checks are configured, returns immediately.
+        """
         metab_conf = self.config.multiscale_run.metabolism
         if "checks" not in metab_conf:
             return
