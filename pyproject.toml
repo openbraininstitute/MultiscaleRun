@@ -70,7 +70,9 @@ dynamic = ["version"]
 [project.optional-dependencies]
 docs = [
     "mistune<3",
-    "sphinx",
+    # sphinx-bluebrain-theme should be updated and is not compatible with
+    # sphinx 9. We limit it for now
+    "sphinx<9",
     "sphinx-bluebrain-theme",
     "sphinx-mdinclude",
 ]
