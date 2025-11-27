@@ -5,6 +5,7 @@ test_folder="tiny_CI_test"
 # libsoantareport
 
 export LIBSONATA_ZERO_BASED_GIDS=1
+export OMP_NUM_THREADS=1
 
 # spack
 
