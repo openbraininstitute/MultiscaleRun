@@ -3,6 +3,7 @@ import functools
 import json
 import logging
 import textwrap
+import warnings
 from pathlib import Path
 
 import jsonschema
@@ -317,6 +318,37 @@ class MsrConfig(dict):
         except jsonschema.exceptions.ValidationError as ve:
             raise MsrConfigSchemaError(ve)
 
+
+
+    def _check_ndts(self):
+        """Check and validate connection ndts for active simulators.
+        
+        Validates that all active connections have valid sync ndts and warns
+        if sync ndts happen rarely: differs from both source and destination ndts.
+        
+        Raises:
+            MsrConfigException: If connection has active simulators but invalid sync ndts.
+        """
+        for conn in self.multiscale_run.connections:
+            if not self.is_manager_active(conn.src_simulator) or not self.is_manager_active(conn.dest_simulator):
+                continue
+            if "ndts" in conn:
+                continue
+
+            conn_ndts = self.conn_ndts(conn)
+
+            if not conn_ndts:
+                raise MsrConfigException(f"Connection: {conn} has both simulators active but the sync ndts is not valid: {conn_ndts}")
+
+            src_ndts = self.manager_ndts(conn.src_simulator)
+            dest_ndts = self.manager_ndts(conn.dest_simulator)
+
+            if conn_ndts != src_ndts and conn_ndts != dest_ndts:
+                warnings.warn(
+                    f"Connection {conn.src_simulator} -> {conn.dest_simulator}: "
+                    f"sync ndts ({conn_ndts}) is rarely syncing because it differs from both source ndts ({src_ndts}) and dest ndts ({dest_ndts}). Consider changing them or set a custom value."
+                )
+
     def is_steps_active(self):
         """Convenience function to check if a steps is active"""
         if "multiscale_run" not in self or "with_steps" not in self.multiscale_run:
@@ -345,14 +377,28 @@ class MsrConfig(dict):
 
     @property
     def neurodamus_dt(self):
-        """Neurodamus dt"""
+        """Neurodamus dt. Base time step for the NEURON simulator. This is the "unit of time"
+        of the whole multiscale run. Every other dt is a multiple of this: 
+        
+        simulator_dt = ndts*neurodamus_dt
+        
+        Returns:
+            float: The Neurodamus time step in milliseconds.
+            
+        Raises:
+            MsrConfigException: If 'run.dt' attribute is missing from config.
+        """
         if "run" in self and "dt" in self.run:
             return self.run.dt
         raise MsrConfigException(f"Missing 'run.dt' attribute in config file: '{self.config_path}'")
 
     @property
     def multiscale_run_dt(self):
-        """Multiscale run dt. Computed based on the other dts."""
+        """Multiscale run dt. Computed based on the synchronization requirements.
+        
+        Returns:
+            float: The MultiscaleRun time step in milliseconds, computed as ndts * neurodamus_dt.
+        """
         if "multiscale_run" in self and "ndts" in self.multiscale_run:
             return self.multiscale_run.ndts * self.neurodamus_dt
         raise None
@@ -380,6 +426,96 @@ class MsrConfig(dict):
             # raise the usual errors if the manager is active but we cannot access ndts
             return self.multiscale_run.metabolism.ndts * self.neurodamus_dt
         return None
+    
+    def manager_ndts(self, manager):
+        """Get the number of Neurodamus dts for a specific manager.
+        
+        Args:
+            manager (str): The manager name (e.g., 'neurodamus', 'metabolism', 'steps').
+            
+        Returns:
+            int: Number of Neurodamus dts for the manager (1 for neurodamus, configured value for others).
+            None: If the manager is not active.
+        """
+        if self.is_manager_active(manager):
+            return 1 if manager == "neurodamus" else self.multiscale_run[manager].ndts
+        return None
+    
+    def manager_idts(self, manager, idts):
+        """ Computes how many idts passed for a certain simulator the moment we are in time mesured in idts """
+        ndts = self.manager_ndts(manager)
+        if ndts:
+            return (idts // ndts) * ndts
+
+        return None
+    
+    def manager_dt(self, manager):
+        """Get the time step for a specific manager.
+        
+        Args:
+            manager (str): The manager name (e.g., 'neurodamus', 'metabolism', 'steps').
+            
+        Returns:
+            float: The manager's time step in milliseconds.
+            None: If the manager is not active.
+        """
+        return getattr(self, f"{manager}_dt")
+    
+    def is_conn_active(self, conn):
+        """Check if a connection is active.
+        
+        Args:
+            conn: Connection object with src_simulator and dest_simulator attributes.
+            
+        Returns:
+            bool: True if both source and destination simulators are active.
+        """
+        return self.is_manager_active(conn.src_simulator) and self.is_manager_active(conn.dest_simulator)
+    
+    @staticmethod
+    def pretty_print_conn(conn):
+        """Generate a human-readable string representation of a connection.
+        
+        Args:
+            conn: Connection object with src_simulator, dest_simulator, src_get_kwargs, and action attributes.
+            
+        Returns:
+            str: Formatted string describing the connection.
+        """
+        return f"{conn.src_simulator} -> {conn.dest_simulator} ({dict(conn.src_get_kwargs)}, {conn.action})"
+
+    def conn_ndts(self, conn):
+        """Get the number of Neurodamus dts for a connection synchronization.
+        
+        Args:
+            conn: Connection object with src_simulator and dest_simulator attributes.
+            
+        Returns:
+            int: Number of Neurodamus dts for connection sync (custom value or LCM of source/dest ndts).
+            None: If the connection is not active.
+        """
+        if self.is_conn_active(conn):
+            if "ndts" in conn:
+                return conn.ndts
+            src_ndts = self.manager_ndts(conn.src_simulator)
+            dest_ndts = self.manager_ndts(conn.dest_simulator)
+            return np.lcm(src_ndts, dest_ndts)
+        return None
+    
+    def conn_dt(self, conn):
+        """Get the time step for a connection synchronization.
+        
+        Args:
+            conn: Connection object with src_simulator and dest_simulator attributes.
+            
+        Returns:
+            float: The connection's synchronization time step in milliseconds.
+            None: If the connection is not active.
+        """
+        ndts = self.conn_ndts(conn)
+        if ndts:
+            return ndts * self.neurodamus_dt
+        return None
 
     def compute_multiscale_run_ndts(self):
         """Compute MultiscaleRun n dts based on the active simulators
@@ -387,28 +523,32 @@ class MsrConfig(dict):
         Calculates the number of Neurodamus dts required to synchronize simulations.
         """
         msr_conf = self.multiscale_run
-        if self.is_metabolism_active() and self.is_steps_active():
-            if msr_conf.steps.ndts > msr_conf.metabolism.ndts:
-                logging.info(
-                    f"steps.ndts reduced to match metabolism: {msr_conf.steps.ndts} -> {msr_conf.metabolism.ndts}"
-                )
-                msr_conf.steps.ndts = msr_conf.metabolism.ndts
+        # let's keep this more general for now
+        # if self.is_metabolism_active() and self.is_steps_active():
+        #     if msr_conf.steps.ndts > msr_conf.metabolism.ndts:
+        #         logging.info(
+        #             f"steps.ndts reduced to match metabolism: {msr_conf.steps.ndts} -> {msr_conf.metabolism.ndts}"
+        #         )
+        #         msr_conf.steps.ndts = msr_conf.metabolism.ndts
 
-        if self.is_metabolism_active() and self.is_bloodflow_active():
-            if msr_conf.bloodflow.ndts > msr_conf.metabolism.ndts:
-                logging.info(
-                    f"bloodflow.ndts reduced to match metabolism: {msr_conf.bloodflow.ndts} -> {msr_conf.metabolism.ndts}"
-                )
-                msr_conf.bloodflow.ndts = msr_conf.metabolism.ndts
+        # if self.is_metabolism_active() and self.is_bloodflow_active():
+        #     if msr_conf.bloodflow.ndts > msr_conf.metabolism.ndts:
+        #         logging.info(
+        #             f"bloodflow.ndts reduced to match metabolism: {msr_conf.bloodflow.ndts} -> {msr_conf.metabolism.ndts}"
+        #         )
+        #         msr_conf.bloodflow.ndts = msr_conf.metabolism.ndts
 
+        # do not add neurodamus here! neurodamus is special, we do multiple steps
+        # with it and we have the manager based on multiscale_run dt not neurodamus dt
         l = [
-            msr_conf[i]["ndts"]
-            for i in ["steps", "metabolism", "bloodflow"]
-            if self.is_manager_active(i)
+            val
+            for val in (
+                *(self.manager_ndts(i) for i in ["steps", "metabolism", "bloodflow"]),
+                msr_conf.get("ndts"),
+                *(self.conn_ndts(i) for i in msr_conf.connections)
+            )
+            if val
         ]
-
-        if "ndts" in msr_conf:
-            l.append(msr_conf.ndts)
 
         self["multiscale_run"]["ndts"] = int(np.gcd.reduce(l if len(l) else 10000))
 
@@ -443,14 +583,18 @@ class MsrConfig(dict):
             >>> dt_info_str = config.dt_info()
             >>> print(dt_info_str)
         """
+
+        manager_dts = "\n    ".join([f"{i}_dt: {self.manager_dt(i)} ms" for i in ["neurodamus", "metabolism", "bloodflow", "steps"] if self.manager_dt(i)])
+
+        syndc_dts = "\n    ".join([f"{self.pretty_print_conn(i)}: {self.conn_dt(i)} ms" for i in self.multiscale_run.connections if self.conn_dt(i)])
         s = f"""
     -----------------------------------------------------
     --- DTS ---
-    neurodamus dt: {self.neurodamus_dt} ms
-    steps dt: {self.steps_dt} ms
-    bloodflow dt: {self.bloodflow_dt} ms
-    metabolism dt: {self.metabolism_dt} ms
-    multiscale run dt: {self.multiscale_run_dt} ms
+    {manager_dts}
+
+    --- sync DTS ---
+    {syndc_dts}
+    
     SIM_END: {self.run.tstop} ms
     --- DTS ---
     -----------------------------------------------------

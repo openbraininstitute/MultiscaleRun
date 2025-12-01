@@ -24,7 +24,7 @@ class MsrConnectionManager:
         self.config = config
         self.managers = managers
         # needed for the merge syncing scheme
-        self.cache = {}
+        self.cache = [None] * len(self.config.multiscale_run.connections)
         self.pyeval = utils.PyExprEval(self.config)
 
     @utils.cache_decorator(
@@ -155,7 +155,7 @@ class MsrConnectionManager:
             logging.debug(f"vals set in src: {con.src_simulator}")
 
     @utils.logs_decorator
-    def neurodamus2steps_sync(self, sync_event: str, icon: int, con, action: str) -> None:
+    def neurodamus2steps_sync(self, iconn: int, conn, action: str) -> None:
         """Syncs data from 'MsrNeurodamusManager' (source) to 'MsrStepsManager' (destination).
 
         Args:
@@ -175,28 +175,28 @@ class MsrConnectionManager:
 
         match action:
             case "sum":
-                vals = getattr(self.managers[con.src_simulator], con.src_get_func)(
-                    **con.src_get_kwargs
+                vals = getattr(self.managers[conn.src_simulator], conn.src_get_func)(
+                    **conn.src_get_kwargs
                 )
                 # apply standard transformations
                 vals = self.nsegXtetMat.transpose().dot(vals)
                 # apply custom transformations
-                vals = self._apply_custom_op(con=con, vals=vals)
+                vals = self._apply_custom_op(con=conn, vals=vals)
                 # distribute the results
                 utils.comm().Allreduce(vals, vals, op=utils.mpi().SUM)
                 # set the vals
-                self._set_vals(con=con, vals=vals, action=action)
+                self._set_vals(con=conn, vals=vals, action=action)
 
             case _:
                 raise NotImplementedError(
                     f"action: '{action}' not implemented! Available actions: ['sum']"
                 )
 
-        if con.action == "merge":
-            self.cache[(sync_event, icon)] = np.copy(vals)
+        if conn.action == "merge":
+            self.cache[iconn] = np.copy(vals)
 
     @utils.logs_decorator
-    def neurodamus2metabolism_sync(self, sync_event: str, icon: int, con, action: str) -> None:
+    def neurodamus2metabolism_sync(self, iconn: int, conn, action: str) -> None:
         """Syncs data from 'MsrNeurodamusManager' (source) to 'MsrMetabolismManager' (destination).
 
         Args:
@@ -213,59 +213,60 @@ class MsrConnectionManager:
         Raises:
             NotImplementedError: If the action is not implemented.
         """
+
         ndam_m = self.managers["neurodamus"]
 
         match action:
             case "set":
-                vals = ndam_m.get_var(**con.src_get_kwargs)
+                vals = ndam_m.get_var(**conn.src_get_kwargs)
 
                 # apply standard transformations
                 vals = self.nXnsegMatBool.dot(vals)
-                vals = np.divide(vals, ndam_m.nc_weights[con.src_get_kwargs.weight][0])
+                vals = np.divide(vals, ndam_m.nc_weights[conn.src_get_kwargs.weight][0])
                 # apply custom transformations
-                vals = self._apply_custom_op(con=con, vals=vals)
+                vals = self._apply_custom_op(con=conn, vals=vals)
                 # set the vals
-                self._set_vals(con=con, vals=vals, action=action)
+                self._set_vals(con=conn, vals=vals, action=action)
 
             case "merge":
                 # Merging means doing this operation:
                 # delta Vals_src + delta Vals_dest - Vals_previous sync = new Vals
 
                 # If Vals_previous is missing, downgrade to setting
-                if (sync_event, icon) not in self.cache:
+                if iconn not in self.cache:
                     self.neurodamus2metabolism_sync(
-                        sync_event=sync_event, icon=icon, con=con, action="set"
+                        iconn=iconn, conn=conn, action="set"
                     )
                     return
 
                 # Collect and adapt vals from src
-                vals = ndam_m.get_var(**con.src_get_kwargs)
+                vals = ndam_m.get_var(**conn.src_get_kwargs)
 
                 # apply standard transformations
                 vals = self.nXnsegMatBool.dot(vals)
-                vals = np.divide(vals, ndam_m.nc_weights[con.src_get_kwargs.weight][0])
+                vals = np.divide(vals, ndam_m.nc_weights[conn.src_get_kwargs.weight][0])
                 # Add vals from dest
-                dest_vals = getattr(self.managers[con.dest_simulator], con.dest_get_func)(
-                    **con.dest_get_kwargs
+                dest_vals = getattr(self.managers[conn.dest_simulator], conn.dest_get_func)(
+                    **conn.dest_get_kwargs
                 )
                 # remove Vals_previous
-                prev_vals = self.cache[(sync_event, icon)]
+                prev_vals = self.cache[iconn]
                 # merge
                 vals += dest_vals - prev_vals
                 # apply additional operations
-                vals = self._apply_custom_op(con=con, vals=vals)
+                vals = self._apply_custom_op(con=conn, vals=vals)
                 # set values
-                self._set_vals(con=con, vals=vals, action=action)
+                self._set_vals(con=conn, vals=vals, action=action)
 
             case _:
                 raise NotImplementedError(
                     f"action: '{action}' not implemented! Available actions: ['set', 'merge']"
                 )
 
-        if con.action == "merge":
-            self.cache[(sync_event, icon)] = np.copy(vals)
+        if conn.action == "merge":
+            self.cache[iconn] = np.copy(vals)
 
-    def neurodamus2bloodflow_sync(self, sync_event: str, icon: int, con, action: str) -> None:
+    def neurodamus2bloodflow_sync(self, iconn: int, conn, action: str) -> None:
         """Syncs data from 'MsrNeurodamusManager' (source) to 'MsrBloodflowManager' (destination).
 
         Args:
@@ -287,8 +288,8 @@ class MsrConnectionManager:
             case "set":
                 # Probably the radii
                 # idxs of the vasculature segments
-                idxs, vals = getattr(self.managers[con.src_simulator], con.src_get_func)(
-                    **con.src_get_kwargs
+                idxs, vals = getattr(self.managers[conn.src_simulator], conn.src_get_func)(
+                    **conn.src_get_kwargs
                 )
                 idxs = utils.comm().gather(idxs, root=0)
                 vals = utils.comm().gather(vals, root=0)
@@ -296,21 +297,21 @@ class MsrConnectionManager:
                     idxs = [j for i in idxs for j in i]
                     vals = [j for i in vals for j in i]
                     # apply additional custom operations
-                    vals = self._apply_custom_op(con=con, vals=vals)
+                    vals = self._apply_custom_op(con=conn, vals=vals)
                     # this is custom made because here we need to service also the indexes
-                    getattr(self.managers[con.dest_simulator], con.dest_set_func)(
-                        idxs=idxs, vals=vals, **con.dest_set_kwargs
+                    getattr(self.managers[conn.dest_simulator], conn.dest_set_func)(
+                        idxs=idxs, vals=vals, **conn.dest_set_kwargs
                     )
-                    logging.info(f"vals set in dest: {con.dest_simulator}")
+                    logging.info(f"vals set in dest: {conn.dest_simulator}")
             case _:
                 raise NotImplementedError(
                     f"action: '{action}' not implemented! Available actions: ['set']"
                 )
 
-        if con.action == "merge":
-            self.cache[(sync_event, icon)] = np.copy(vals)
+        if conn.action == "merge":
+            self.cache[iconn] = np.copy(vals)
 
-    def bloodflow2metabolism_sync(self, sync_event: str, icon: int, con, action: str) -> None:
+    def bloodflow2metabolism_sync(self, iconn: int, conn, action: str) -> None:
         """Syncs data from 'MsrBloodflowManager' (source) to 'MsrMetabolismManager' (destination).
 
         Args:
@@ -333,8 +334,8 @@ class MsrConnectionManager:
                 vals = None
                 if utils.rank0():
                     # get raw values
-                    vals = getattr(self.managers[con.src_simulator], con.src_get_func)(
-                        **con.src_get_kwargs
+                    vals = getattr(self.managers[conn.src_simulator], conn.src_get_func)(
+                        **conn.src_get_kwargs
                     )
 
                     # apply additional operations
@@ -347,24 +348,24 @@ class MsrConnectionManager:
                     # given that we are sure that we are not double counting on a tet Fin and Fout, we can use
                     # and abs value to have always positive input flow
 
-                    vals = self._apply_custom_op(con=con, vals=vals)
+                    vals = self._apply_custom_op(con=conn, vals=vals)
 
                 vals = utils.comm().bcast(vals, root=0)
 
                 vals = self.nXtetMat.dot(vals)
 
-                self._set_vals(con=con, vals=vals, action=action)
+                self._set_vals(con=conn, vals=vals, action=action)
 
             case _:
                 raise NotImplementedError(
                     f"action: '{action}' not implemented! Available actions: ['set']"
                 )
 
-        if con.action == "merge":
-            self.cache[(sync_event, icon)] = np.copy(vals)
+        if conn.action == "merge":
+            self.cache[conn] = np.copy(vals)
 
     @utils.logs_decorator
-    def steps2metabolism_sync(self, sync_event: str, icon: int, con, action: str) -> None:
+    def steps2metabolism_sync(self, iconn: int, conn, action: str) -> None:
         """Syncs data from 'MsrStepsManager' (source) to 'MsrMetabolismManager' (destination).
 
         Args:
@@ -385,27 +386,27 @@ class MsrConnectionManager:
         match action:
             case "set":
                 # get the raw vals
-                vals = getattr(self.managers[con.src_simulator], con.src_get_func)(
-                    **con.src_get_kwargs
+                vals = getattr(self.managers[conn.src_simulator], conn.src_get_func)(
+                    **conn.src_get_kwargs
                 )
                 # custom operations
-                vals = self._apply_custom_op(con=con, vals=vals)
+                vals = self._apply_custom_op(con=conn, vals=vals)
                 # standard transformations
                 vals = self.nXtetMat.dot(vals)
                 # set vals
-                self._set_vals(con=con, vals=vals, action=action)
+                self._set_vals(con=conn, vals=vals, action=action)
 
             case _:
                 raise NotImplementedError(
                     f"action: '{action}' not implemented! Available actions: ['set']"
                 )
 
-        if con.action == "merge":
-            self.cache[(sync_event, icon)] = np.copy(vals)
+        if conn.action == "merge":
+            self.cache[iconn] = np.copy(vals)
 
     @utils.logs_decorator
-    def process_syncs(self, sync_event: str) -> None:
-        """Dispatch to the correct syncing procedure based on the `sync_event`
+    def sync(self, idts) -> None:
+        """Process connections based on number of neurodamus time steps that passed
 
         The sync event marks, in the main loop, when the particular series of connections syncs take place.
 
@@ -434,19 +435,16 @@ class MsrConnectionManager:
             None
         """
 
-        logging.info(f"processing sync event: {sync_event}")
-
-        for icon, con in enumerate(self.config.multiscale_run.connections[sync_event]):
-            if not self.config.is_manager_active(
-                con.src_simulator
-            ) or not self.config.is_manager_active(con.dest_simulator):
-                continue
-
-            logging.info(f"   connect: {con.src_simulator} -> {con.dest_simulator}")
-
-            getattr(self, f"{con.src_simulator}2{con.dest_simulator}_sync")(
-                sync_event=sync_event, icon=icon, con=con, action=con.action
-            )
+        for iconn, conn in enumerate(self.config.multiscale_run.connections):
+            ndts = self.config.conn_ndts(conn)
+            if ndts and (idts % ndts) == 0:
+                src_simulator = self.managers[conn.src_simulator]
+                dest_simulator = self.managers[conn.dest_simulator]
+                assert src_simulator.idts == dest_simulator.idts, f"{conn}, {src_simulator.idts}, {dest_simulator.idts}"
+                logging.info(f"sync: {self.config.pretty_print_conn(conn)}")
+                getattr(self, f"{conn.src_simulator}2{conn.dest_simulator}_sync")(
+                    iconn=iconn, conn=conn, action=conn.action
+                )
 
     @utils.logs_decorator
     def remove_gids(self, failed_cells: list[int]):
@@ -465,21 +463,23 @@ class MsrConnectionManager:
         failed_gids = {gids[igid]: e for igid, e in enumerate(failed_cells) if e is not None}
         ndam_m.removed_gids |= failed_gids
 
+        # remove seg-related rows/cols
         to_be_removed = list(ndam_m.gen_to_be_removed_segs())
-
         if hasattr(self, "nsegXtetMat"):
             self.nsegXtetMat = utils.delete_rows(self.nsegXtetMat, to_be_removed)
         if hasattr(self, "nXnsegMatBool"):
             self.nXnsegMatBool = utils.delete_cols(self.nXnsegMatBool, to_be_removed)
 
+        # remove seg-related rows/cols
         to_be_removed = list([idx for idx, e in enumerate(failed_cells) if e is not None])
         if hasattr(self, "nXtetMat"):
             self.nXtetMat = utils.delete_rows(self.nXtetMat, to_be_removed)
         if hasattr(self, "nXnsegMatBool"):
             self.nXnsegMatBool = utils.delete_rows(self.nXnsegMatBool, to_be_removed)
 
-        for k, v in self.cache.items():
-            self.cache[k] = utils.remove_elems(v=v, to_be_removed=to_be_removed)
+        for i in range(len(self.cache)):
+            if self.cache[i] is not None:
+                self.cache[i] = utils.remove_elems(v=self.cache[i], to_be_removed=to_be_removed)
 
         if metab_m is not None:
             metab_m.parameters = utils.delete_rows(metab_m.parameters, to_be_removed)

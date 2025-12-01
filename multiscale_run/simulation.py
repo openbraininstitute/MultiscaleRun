@@ -1,4 +1,4 @@
-"""This module provides an API to instantiate, initialize,
+"""This module provides an API to instantiate, init,
 and run simulations. It manipulates the "manager" classes
 and orchestrate the different models and pass data between
 them to perform the simulation
@@ -59,217 +59,117 @@ class MsrSimulation:
             steps_manager,
         )
 
+
     @_run_once
-    def configure(self):
-        self.warmup()
-        logging.info("configure simulators")
-
+    def init_multiscale_run(self):
+        """TODO"""
         from multiscale_run import config, connection_manager, preprocessor
+        from multiscale_run import utils as msr_utils
+        self.config = config.MsrConfig(self._base_path)
+        self.config.check()
 
-        self.conf = config.MsrConfig(self._base_path)
-        self.conf.check()
-        self.prep = preprocessor.MsrPreprocessor(self.conf)
+        self.prep = preprocessor.MsrPreprocessor(self.config)
 
         self.managers = {}
         self.conn_m = connection_manager.MsrConnectionManager(
-            config=self.conf, managers=self.managers
+            config=self.config, managers=self.managers
         )
+        # counter of neurodamus dts of the simulation. All simulation times
+        # are based on this
+        self.idts = 0
+        self.prep.autogen_node_sets()
+        self.rss = []  # Memory tracking
+
+        self.time_steps = msr_utils.timesteps(self.config.run.tstop, self.config.multiscale_run_dt)
 
     @_run_once
-    def initialize(self):
-        self.configure()
-        logging.info("Initialize simulation")
-        from neurodamus.utils.timeit import timeit
+    def init_neurodamus(self):
+        """TODO"""
 
         from multiscale_run import (
-            bloodflow_manager,
-            metabolism_manager,
             neurodamus_manager,
             reporter,
-            steps_manager,
         )
+        self.managers["neurodamus"] = neurodamus_manager.MsrNeurodamusManager(self.config)
+        # this is here because neurodamus is in charge of setting the log level
+        logging.info(str(self.config.multiscale_run))
+        logging.info(self.config.dt_info())
+
+        # this keeps track of the failed cells for all the simulators
+        self.failed_cells = [None]*len(self.managers["neurodamus"].ncs)
+
+        # create connection matrices
+        self.conn_m.connect_neurodamus2neurodamus()
+
+    @_run_once
+    def init_metabolism(self):
+        self.managers["metabolism"] = None
+        if self.config.is_metabolism_active():
+            from multiscale_run import (
+                metabolism_manager,
+            )
+            self.managers["metabolism"] = metabolism_manager.MsrMetabolismManager(
+                config=self.config,
+                neuron_pop_name=self.managers["neurodamus"].neuron_manager.population_name,
+                ncs=self.managers["neurodamus"].ncs,  # libsonata wants gids without offset
+            )
+
+    def sync(self):
+        """Process syncs and cleanup (in case of recoverable failures)"""
+        self.conn_m.sync(idts = self.idts)
+        if self.config.is_metabolism_active():
+            self.managers["metabolism"].check_inputs(failed_cells=self.failed_cells)
+        self.conn_m.remove_gids(failed_cells=self.failed_cells)
+
+    @_run_once
+    def init(self):
+        self.warmup()
+        from neurodamus.utils.timeit import timeit
+        logging.info("init simulation")
 
         with timeit(name="initialization"):
-            self.prep.autogen_node_sets()
-            self.neurodamus_manager = neurodamus_manager.MsrNeurodamusManager(self.conf)
-            self.managers["neurodamus"] = self.neurodamus_manager
-            failed_cells = [None] * len(self.neurodamus_manager.ncs)
+            self.init_multiscale_run()
+            self.init_neurodamus()
+            self.init_metabolism()
 
-            # this is here because neurodamus is in charge of setting the log level
-            logging.info(str(self.conf.multiscale_run))
-            logging.info(self.conf.dt_info())
+            self.sync()
 
-            logging.info("Initializing simulations...")
-            self.conn_m.connect_neurodamus2neurodamus()
-
-            self.managers["bloodflow"] = None
-            if self.conf.is_bloodflow_active():
-                self.managers["bloodflow"] = bloodflow_manager.MsrBloodflowManager(
-                    vasculature_path=self.neurodamus_manager.get_vasculature_path(),
-                    parameters=self.conf.multiscale_run.bloodflow,
-                )
-            # the communication between bf and ndam is mediated by the steps mesh. We need the
-            # connect calls in this case
-
-            self.managers["steps"] = None
-            if self.conf.is_steps_active() or (
-                self.conf.is_bloodflow_active() and self.conf.is_metabolism_active()
-            ):
-                self.prep.autogen_mesh(
-                    ndam_m=self.neurodamus_manager,
-                    bf_m=self.managers["bloodflow"],
-                )
-                self.prep.check_mesh()
-                self.managers["steps"] = steps_manager.MsrStepsManager(config=self.conf)
-                self.managers["steps"].init_sim()
-                self.conn_m.connect_neurodamus2steps()
-                if self.conf.is_bloodflow_active():
-                    self.conn_m.connect_bloodflow2steps()
-
-            self.managers["metabolism"] = None
-            if self.conf.is_metabolism_active():
-                self.managers["metabolism"] = metabolism_manager.MsrMetabolismManager(
-                    config=self.conf,
-                    neuron_pop_name=self.managers["neurodamus"].neuron_manager.population_name,
-                    raw_gids=self.neurodamus_manager.gids(
-                        raw=True
-                    ),  # libsonata wants gids without offset
-                )
-
-            # sync bloodflow to give initial values to metabolism
-            self.conn_m.process_syncs(sync_event="before_bloodflow_advance")
-            if self.conf.is_bloodflow_active():
-                self.managers["bloodflow"].update_static_flow()
-
-            self.rep = reporter.MsrReporter(
-                config=self.conf,
-                gids=self.neurodamus_manager.gids(raw=True),
-                n_bf_segs=(
-                    self.managers["bloodflow"].n_segs if self.conf.is_bloodflow_active() else 0
-                ),
-            )
-
-            # apply all the connections for initialization
-            self.rep.record(
-                idt=0,
-                manager_name="metabolism",
-                managers=self.managers,
-                when="before_sync",
-            )
-
-            self.conn_m.process_syncs(sync_event="after_metabolism_advance")
-
-            # remove cells that already fail
-            if self.conf.is_metabolism_active():
-                self.managers["metabolism"].check_inputs(failed_cells=failed_cells)
-            self.conn_m.remove_gids(failed_cells=failed_cells)
-
-            self.rep.record(
-                idt=0,
-                manager_name="metabolism",
-                managers=self.managers,
-                when="after_sync",
-            )
-            self.rep.record(
-                idt=0,
-                manager_name="bloodflow",
-                managers=self.managers,
-                when="after_sync",
-            )
+    @_run_once
+    def finalize(self):
+        from neurodamus.utils.timeit import TimerManager
+        """Final printing of files, after the loop"""
+        self.managers["neurodamus"].ndamus.sonata_spikes()
+        TimerManager.timeit_show_stats()
+        utils.comm().Barrier()
+        self.managers["neurodamus"].ndamus._touch_file(self.managers["neurodamus"].ndamus._success_file)
 
     @_run_once
     def compute(self):
         """Perform the actual simulation"""
-        self.initialize()
+        self.init()
         logging.info("Starting simulation")
 
         # Memory tracking
         import psutil
         from neurodamus.core import ProgressBarRank0 as ProgressBar
-        from neurodamus.utils.logging import log_stage
-        from neurodamus.utils.timeit import TimerManager, timeit
+        from neurodamus.utils.timeit import timeit
 
-        from multiscale_run import utils as msr_utils
+        for t in ProgressBar(len(self.time_steps))(self.time_steps):
+            self.idts += self.config.multiscale_run.ndts
 
-        log_stage("===============================================")
-        log_stage("Running the selected solvers ...")
-
-        self.rss = []  # Memory tracking
-
-        # i_* is the number of time steps of that particular simulator
-        i_ndam, i_metab = 0, 0
-        time_step_n = int(self.conf.run.tstop / (self.conf.multiscale_run_dt))
-        time_steps = msr_utils.timesteps(self.conf.run.tstop, self.conf.multiscale_run_dt)
-
-        for t in ProgressBar(time_step_n)(time_steps):
-            i_ndam += self.conf.multiscale_run.ndts
             with timeit(name="main_loop"):
-                failed_cells = [None] * len(self.neurodamus_manager.ncs)
-                with timeit(name="neurodamus_advance"):
-                    self.neurodamus_manager.ndamus.solve(t)
+                self.managers["neurodamus"].solve(idts=self.idts)
 
-                if (
-                    self.conf.is_steps_active()
-                    and i_ndam % self.conf.multiscale_run.steps.ndts == 0
-                ):
-                    with timeit(name="steps_advance"):
-                        self.managers["steps"].sim.run(t / 1000)  # ms to sec
+                if self.config.is_metabolism_active():
+                    self.managers["metabolism"].solve(idts=self.idts, failed_cells=self.failed_cells)
 
-                    self.conn_m.process_syncs(sync_event="after_steps_advance")
-
-                if (
-                    self.conf.is_bloodflow_active()
-                    and i_ndam % self.conf.multiscale_run.bloodflow.ndts == 0
-                ):
-                    # bloodflow has an implicit scheme because it works with quasi-static assumption
-                    self.conn_m.process_syncs(sync_event="before_bloodflow_advance")
-                    with timeit(name="bloodflow_advance"):
-                        self.managers["bloodflow"].update_static_flow()
-
-                if (
-                    self.conf.is_metabolism_active()
-                    and i_ndam % self.conf.multiscale_run.metabolism.ndts == 0
-                ):
-                    with timeit(name="metabolism_advance"):
-                        self.managers["metabolism"].check_inputs(failed_cells=failed_cells)
-                        self.managers["metabolism"].advance(
-                            i_metab=i_metab, failed_cells=failed_cells
-                        )
-                    i_metab += 1
-                    utils.comm().Barrier()
-
-                    self.conn_m.remove_gids(failed_cells=failed_cells)
-
-                    self.rep.record(
-                        idt=i_metab,
-                        manager_name="metabolism",
-                        managers=self.managers,
-                        when="before_sync",
-                    )
-
-                    self.conn_m.process_syncs(sync_event="after_metabolism_advance")
-
-                    self.rep.record(
-                        idt=i_metab,
-                        manager_name="metabolism",
-                        managers=self.managers,
-                        when="after_sync",
-                    )
-                    self.rep.record(
-                        idt=i_metab,
-                        manager_name="bloodflow",
-                        managers=self.managers,
-                        when="after_sync",
-                    )
+                self.sync()
 
                 self.rss.append(
                     psutil.Process().memory_info().rss / (1024**2)
-                )  # memory consumption in MB
+                )
 
-        self.neurodamus_manager.ndamus.sonata_spikes()
-        TimerManager.timeit_show_stats()
-        utils.comm().Barrier()
-        self.neurodamus_manager.ndamus._touch_file(self.neurodamus_manager.ndamus._success_file)
+        self.finalize()
 
 
 def main():
@@ -280,3 +180,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+

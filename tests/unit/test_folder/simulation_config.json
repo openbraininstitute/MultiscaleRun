@@ -21,31 +21,25 @@
             }
         },
         "metabolism": {
-            "ndts": 10
+            "ndts": 10,
+            "reports": {
+                "metab_ina": {
+                    "src_get_func": "get_vals",
+                    "src_get_kwargs": {
+                        "idx": 1
+                    },
+                    "unit": "mA/cm^2",
+                    "file_name": "metab_ina_custom_name.h5"
+                },
+                "alive_gids": {
+                    "src_get_func": "get_vals"
+                }
+            }
         },
         "bloodflow": {
             "ndts": 4000
         },
-        "reports": {
-            "metabolism": {
-                "metab_ina": {
-                    "src_get_func": "get_vals",
-                    "src_get_kwargs": {"idx": 1},  
-                    "unit": "foo3",
-                    "file_name": "test_reporter.h5",
-                    "when": "after_sync"
-                }
-            },
-            "bloodflow": {
-                "bf_flow": {
-                    "src_get_func": "get_flows",
-                    "src_get_kwargs": {"idxs": [0, 2, 5]},  
-                    "unit": "foo3",
-                    "file_name": "test_bf_flows.h5",
-                    "when": "after_sync"
-                }
-            }
-        }
+        "connections": {}
     },
     "run": {
         "tstop": 1,

@@ -23,7 +23,6 @@ def test_getattr():
     # ensure proper data transformation
     assert isinstance(conf.config_path, Path)
     assert isinstance(conf.multiscale_run, MsrConfig)
-    assert isinstance(conf.multiscale_run.reports, MsrConfig)
     assert isinstance(conf.multiscale_run.foo_path, Path)
     assert isinstance(conf.multiscale_run.d.miao_path, Path)
     assert isinstance(conf.multiscale_run.includes, list)
@@ -32,7 +31,7 @@ def test_getattr():
     # ensure objects are not copied whenever we access a property
     assert id(conf.multiscale_run) == id(conf.multiscale_run)
     assert id(conf.multiscale_run.includes) == id(conf.multiscale_run.includes)
-    assert id(conf.multiscale_run.reports) == id(conf.multiscale_run.reports)
+    assert id(conf.multiscale_run.metabolism.reports) == id(conf.multiscale_run.metabolism.reports)
 
 
 def test_load():
@@ -56,7 +55,6 @@ def test_load():
     # finally, config can be a Python dict
     MsrConfig._from_dict(conf1.multiscale_run.d)
 
-
 def test_check():
     default_circuit = MsrConfig.default()
     # default config is valid
@@ -74,7 +72,6 @@ def test_check():
         default_circuit.check()
     assert "JSONEncoder" not in str(excinfo.value)
     assert "Error: 'ndts' is a required property" in str(excinfo.value)
-
 
 if __name__ == "__main__":
     test_getattr()

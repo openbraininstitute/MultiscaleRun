@@ -16,7 +16,8 @@
     "preprocessor",
     "with_bloodflow",
     "with_metabolism",
-    "with_steps"
+    "with_steps",
+    "connections"
   ],
   "additionalProperties": false,
   "properties": {
@@ -100,7 +101,7 @@
           "additionalProperties": false,
           "properties": {
             "filter_neuron": {
-              "description": "Determines if the neurons connected to astrocytes must be filtered out when generating the mesh.",
+              "description": "If true, excludes neurons connected to astrocytes from mesh generation. If false, includes all neurons regardless of astrocyte connectivity.",
               "type": "boolean"
             },
             "neuron_population_name": {
@@ -120,13 +121,83 @@
       }
     },
     "connections": {
-      "description": "outlines how data are exchanged between the different models.",
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "after_metabolism_advance": {"$ref":  "#/$defs/connections"},
-        "after_steps_advance": {"$ref":  "#/$defs/connections"},
-        "before_bloodflow_advance": {"$ref":  "#/$defs/connections"}
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "action",
+          "dest_set_func",
+          "dest_set_kwargs",
+          "dest_simulator",
+          "src_get_func",
+          "src_get_kwargs",
+          "src_simulator"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "ndts": {
+            "description": "Sync every custom number of neurodamus dts (optional). By default, it syncs every time src_simulator and dest_simulator times match.",
+            "type": "integer",
+            "minimum": 1
+          },
+          "src_simulator": {
+            "description": "Simulator, source of the values that need to be synced.",
+            "enum": ["neurodamus", "steps", "bloodflow", "metabolism"],
+            "type": "string"
+          },
+          "dest_simulator": {
+            "description": "Simulator, destination of the values that need to be synced.",
+            "enum": ["neurodamus", "steps", "bloodflow", "metabolism"],
+            "type": "string"
+          },
+          "src_get_func": {
+            "description": "Getter function for the source simulator.",
+            "type": "string"
+          },
+          "src_get_kwargs": {
+            "description": "Inputs for the getter function for the source simulator.",
+            "type": "object"
+          },
+          "src_set_func": {
+              "type": "string",
+              "description": "Setter function for the source simulator."
+          },
+          "src_set_kwargs": {
+              "type": "object",
+              "description": "Inputs of the setter function for the source simulator"
+          },
+          "dest_get_func": {
+            "description": "Getter function to the destination simulator.",
+            "type": "string"
+          },
+          "dest_get_kwargs": {
+            "description": "Inputs for the getter function for the destination simulator.",
+            "type": "object"
+          },
+          "dest_set_func": {
+            "description": "Setter function to the destination simulator.",
+            "type": "string"
+          },
+          "dest_set_kwargs": {
+            "description": "Inputs for the setter function for the destination simulator.",
+            "type": "object"
+          },
+          "action": {
+            "description": "The data synchronization method.",
+            "type": "string",
+            "enum": ["set", "sum", "merge"]
+          },
+          "transform_expression": {
+            "description": "A Python expression whose result overrides the transferred data",
+            "type": "string",
+            "examples": [
+              "vals * (1.0 / (1.0e-3 * config.multiscale_run.steps.conc_factor))",
+              "abs(vals) * 5e-10",
+              "np.floor(10 * rg.random((3, 4)))",
+              "tetXtetMat.dot(tetXbfVolsMat.dot(vals)) * 5e-10"
+            ]
+          }
+        }
       }
     },
     "metabolism": {
@@ -136,7 +207,8 @@
       "properties": {
         "ndts": {
           "type": "integer",
-          "description": "Time step of the simulator. Measured in number of Neurodamus time steps."
+          "description": "Time step of the simulator. Measured in number of Neurodamus time steps.",
+          "minimum": 1
         },
         "constants": {
           "description": "Constant necessary for the Metabolism manager of MultiscaleRun.",
@@ -161,20 +233,23 @@
               "parameters": {"$ref":  "#/$defs/input_check"},
               "vm": {"$ref":  "#/$defs/input_check"}
             }
-        }
+        },
+        "reports": {"$ref": "#/$defs/reports"}
       },
       "required": [
         "ndts"
       ]
     },
     "steps": {
+      "reports": {"$ref": "#/$defs/reports"},
       "description":  "Parameters of the STEPS simulator.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
        "ndts": {
          "type": "integer",
-         "description": "Time step of the simulator. Measured in number of Neurodamus time steps."
+         "description": "Time step of the simulator. Measured in number of Neurodamus time steps.",
+          "minimum": 1
        },
         "conc_factor": {
           "type": "number",
@@ -224,6 +299,7 @@
       }
     },
     "bloodflow": {
+      "reports": {"$ref": "#/$defs/reports"},
       "description":  "Parameters for the blood flow simulator (AstroVascPy). https://astrovascpy.readthedocs.io/latest/generated/astrovascpy.typing.html#astrovascpy.typing.VasculatureParams",
       "type": "object",
       "additionalProperties": false,
@@ -285,52 +361,35 @@
         "node_scale",
         "vasc_axis"
       ]
-    },
-    "reports": {
-      "description":  "Parameters to report the simulation outcome.",
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "metabolism": {"$ref":  "#/$defs/model_report"},
-        "bloodflow": {"$ref":  "#/$defs/model_report"},
-        "steps": {"$ref":  "#/$defs/model_report"}
-      }
     }
   },
   "$defs": {
-    "model_report": {
+    "reports": {
+      "description": "Parameters to report the simulation inputs/outputs.",
       "type": "object",
       "additionalProperties": {
         "type": "object",
         "additionalProperties": false,
         "properties": {
           "src_get_func": {
-            "description": "Getter function for the simulator (in this case, `metabolism`)",
-            "type": "string"
+            "type": "string",
+            "description": "Getter function for the simulator."
           },
           "src_get_kwargs": {
             "type": "object",
-            "description": "Inputs for the getter function."
+            "description": "Inputs for the getter function (optional). Default is empty."
           },
           "unit": {
             "type": "string",
-            "description": "Units of the values in the report."
+            "description": "Units of the values in the report (optional). Default is ''."
           },
           "file_name": {
             "type": "string",
-            "description": "Name of the file."
-          },
-          "when": {
-            "type": "string",
-            "description": "Since multiple simulators are active at the same time and `sync` calls may modify the values of the simulators the report may take the values just before or just after the `sync` operation. This value selects that. Possible values: `after_sync`, `before_sync`. Multiple reports (with different file names) for reporting just before and after `sync` are possible."
+            "description": "Name of the file (optional)."
           }
         },
         "required": [
-          "file_name",
-          "src_get_func",
-          "src_get_kwargs",
-          "unit",
-          "when"
+          "src_get_func"
         ]
       }
     },
@@ -360,81 +419,6 @@
             }
           },
           "required": ["response"]
-        }
-      }
-    },
-    "connections": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "required": [
-          "action",
-          "dest_set_func",
-          "dest_set_kwargs",
-          "dest_simulator",
-          "src_get_func",
-          "src_get_kwargs",
-          "src_simulator"
-        ],
-        "additionalProperties": false,
-        "properties": {
-          "src_simulator": {
-            "description": "Simulator, source of the values that need to be synced.",
-            "enum": ["neurodamus", "steps", "bloodflow", "metabolism"],
-            "type": "string"
-          },
-          "dest_simulator": {
-            "description": "Simulator, destination of the values that need to be synced.",
-            "enum": ["neurodamus", "steps", "bloodflow", "metabolism"],
-            "type": "string"
-          },
-          "src_get_func": {
-            "description": "Getter function for the source simulator.",
-            "type": "string"
-          },
-          "src_get_kwargs": {
-            "description": "Inputs for the getter function for the source simulator.",
-            "type": "object"
-          },
-          "src_set_func": {
-              "type": "string",
-              "description": "Setter function for the source simulator."
-          },
-          "src_set_kwargs": {
-              "type": "object",
-              "description": "Inputs of the setter function for the source simulator"
-          },
-          "dest_get_func": {
-            "description": "Getter function to the destination simulator.",
-            "type": "string"
-          },
-          "dest_get_kwargs": {
-            "description": "Inputs for the getter function for the destination simulator.",
-            "type": "object"
-          },
-          "dest_set_func": {
-            "description": "Setter function to the destination simulator.",
-            "type": "string"
-          },
-          "dest_set_kwargs": {
-            "description": "Inputs for the setter function for the destination simulator.",
-            "type": "object"
-          },
-          "action": {
-            "description": "The data synchronization method.",
-            "type": "string",
-            "enum": ["set", "sum", "merge"]
-          },
-          "transform_expression": {
-            "description": "A Python expression whose result overrides the transferred data",
-            "type": "string",
-            "examples": [
-              "vals * (1.0 / (1.0e-3 * config.multiscale_run.steps.conc_factor))",
-              "abs(vals) * 5e-10",
-              "np.floor(10 * rg.random((3, 4)))",
-              "tetXtetMat.dot(tetXbfVolsMat.dot(vals)) * 5e-10"
-            ]
-          }
         }
       }
     }

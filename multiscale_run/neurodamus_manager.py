@@ -7,6 +7,8 @@ import neurodamus
 import numpy as np
 from scipy import sparse
 
+from multiscale_run import reporter
+
 from . import utils
 
 
@@ -21,6 +23,8 @@ class MsrNeurodamusManager:
         """
         logging.info("instantiate ndam")
 
+        self.name = "neurodamus"
+        self.config = config
         self.ndamus = neurodamus.Neurodamus(
             str(config.config_path),
             logging_level=config.multiscale_run.logging_level,
@@ -41,6 +45,29 @@ class MsrNeurodamusManager:
         self.acs = np.array([nc for nc in self.astrocyte_manager.cells])
         self.nc_weights = {k: self._cumulate_nc_sec_quantity(k) for k in ["volume", "area"]}
         self.removed_gids = {}
+        self.idts = 0
+
+        self.reporter = reporter.MsrReporter(
+            config=self.config,
+            gids=self.gids(raw=True)
+        )
+        self.reporter.init_files("neurodamus", self.config.multiscale_run_dt, is_post_adv=True)
+
+    def get_compartment_report_var(self, var: str):
+        try:
+            ans = np.array([getattr(nc.CellRef.soma[0], var) for nc in self.ncs])
+        except AttributeError:
+            return []
+        return ans
+
+    def solve(self, idts):
+        self.ndamus.solve(idts*self.config.neurodamus_dt)
+
+        self.reporter.record(idt = self.idts // self.config.multiscale_run.ndts, simulator = self, gids = self.gids(raw=True), is_post_adv=True)
+        # this goes after post_adv record because the idts there are shifted by 1 compared to the index:
+        # data[0] is fot time dt
+        self.idts = idts
+
 
     def gids(self, raw=False):
         """Convenience function to get the gids from ncs"""
@@ -325,6 +352,8 @@ class MsrNeurodamusManager:
                 raise utils.MsrException(
                     "All the neurons were removed! There is probably something fishy going on here"
                 )
+
+
 
     def get_var(self, var: str, weight: str = None, filter=None):
         """Get variable values per segment weighted by a specific factor (e.g., area or volume).

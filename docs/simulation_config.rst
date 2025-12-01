@@ -56,27 +56,19 @@ Preprocessor
 Connections among simulators
 ============================
 
-The section **connections** outlines how data are exchanged between the different models. 
-Simulations are performed alternating among simulators advancing each one based on their respective time step. 
-During this process the user can specify connection among simulators. **connections** is a dictionary of lists of connections. 
-The keys specify when that particular list of connections takes place. 
-For example: `after_metabolism_advance` means that that connection is called right after the advance call of metabolism. 
-When a connection is called, the various entries of the array are performed in sequence. 
-The order of the list is important: later connections in these lists may override previous ones.
+The section **connections** describes how data is exchanged between different simulators. Simulations advance by alternating between simulators, each progressing according to its own time step.
 
-The possible keys in **connections** are:
+Users can define connections between simulators using a list of dicts. When multiple connections apply, their order matters: the last connection in the list takes priority.
 
-- **after_metabolism_advance**: Connections executed after metabolism advances (dual-run)
-- **after_steps_advance**: Connections executed after STEPS advances (not currently supported)
-- **before_bloodflow_advance**: Connections executed before bloodflow advances (not currently supported)
+Each connection specifies a source simulator `src_simulator` and a destination simulator `dest_simulator`. By default, data is exchanged whenever the internal times of both simulators coincide.
 
-Keys different from the list provided are disregarded and a warning is emitted. Currently, only `after_metabolism_advance` is functional for dual-run simulations.
+This behavior can be customized with the `ndts` parameter, allowing connections to synchronize simulators with differing internal times. This is particularly useful in hybrid integration schemes, where data may propagate backward in time to update simulators that have not yet reached the corresponding time step.
 
 Configuration specification
 ---------------------------
 
 .. note::
-   When working with metabolism connections, you do not need to set indexes explicitly. However, you may need to reference them by name. The available indexes are defined in ``multiscale_run/metabolism/indexes.py`` as two singleton objects: ``PIdx`` (parameter indexes) and ``UIdx`` (variable indexes). For example, ``UIdx.atp_i_n`` corresponds to index 13 for neuronal intracellular ATP.
+   When working with metabolism connections, you do not need to set indexes explicitly. However, you may need to reference them by name. The available indexes are defined in ``multiscale_run/metabolism/indexes.py`` as two singleton objects: ``PIdx`` (parameter indexes) and ``UIdx`` (variable indexes). For example, ``UIdx.atp_i_n`` corresponds to index 13 for neuronal intracellular ATP. In the future multiscale run will give you a rundown of the accepted indexes.
 
 Each connection must specify:
 
@@ -105,6 +97,7 @@ Optionally, the user may specify:
 
 - **src_set_func** and  **src_set_kwargs**: in this case, the final value is also set in the source simulator (this field is required for the `merge` action).
 - **transform_expression**: additional custom operations that may be performed on the values before setting them in the simulators. More on this in: :ref:`data transformation <data_transformation_label>`.
+- `ndts`: if set it overrides the standard connection timing where the simulators connect when their times coincide.
 
 Concrete example
 ----------------
@@ -112,23 +105,21 @@ Concrete example
 .. code-block:: json
 
     {
-        "connections": {
-            "after_metabolism_advance": [
-                {
-                    "src_simulator": "neurodamus",
-                    "src_get_func": "get_var",
-                    "src_get_kwargs": {"var": "atpi", "weight": "volume"},
-                    "src_set_func": "set_var",
-                    "src_set_kwargs": {"var": "atpi"},
-                    "dest_simulator": "metabolism",
-                    "dest_get_func": "get_vm_idx",
-                    "dest_get_kwargs": {"idx": "atp_c_n"},
-                    "dest_set_func": "set_vm_idxs",
-                    "dest_set_kwargs": {"idxs": "atp_c_n"},
-                    "action": "merge"
-                }
-            ]
-        }
+        "connections": [
+            {
+                "src_simulator": "neurodamus",
+                "src_get_func": "get_var",
+                "src_get_kwargs": {"var": "atpi", "weight": "volume"},
+                "src_set_func": "set_var",
+                "src_set_kwargs": {"var": "atpi"},
+                "dest_simulator": "metabolism",
+                "dest_get_func": "get_vm_idx",
+                "dest_get_kwargs": {"idx": "atp_c_n"},
+                "dest_set_func": "set_vm_idxs",
+                "dest_set_kwargs": {"idxs": "atp_c_n"},
+                "action": "merge"
+            }
+        ]
     }
 
 In the previous block MultiscaleRun is instructed to `merge` (the action) the values from Neurodamus and Metabolism simulators (just after Metabolism calls `advance`). It follows the equation:
@@ -178,7 +169,7 @@ Full example of JSON connections with transformation:
 
   {
     "connections": {
-      "after_metabolism_advance": [
+      [
         {
           "src_simulator": "neurodamus",
           "src_get_func": "get_var",
