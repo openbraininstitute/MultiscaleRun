@@ -64,13 +64,16 @@ dependencies = [
     "neurodamus",
     # "h5py[mpi]",
     # "trimesh>=3",
+    # "NEURON-nightly",
+    # "neurodamus",
+    # "morphio"
 ]
 dynamic = ["version"]
 
 [project.optional-dependencies]
 docs = [
     "mistune<3",
-    "sphinx",
+    "sphinx<9",
     "sphinx-bluebrain-theme",
     "sphinx-mdinclude",
 ]

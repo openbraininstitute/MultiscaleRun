@@ -17,26 +17,31 @@ and analyze multiscale simulations from start to finish.
 
 ### Setup
 
-You just need to run `setup.sh` at least once before running the simulation.
+You just need to run the setup script at least once before running the simulation.
 
+**With Spack** (requires OBI spack installation):
 ```bash
 source setup.sh
 ```
 
+**Without Spack** (uses Homebrew on macOS):
+```bash
+source setup_no_spack.sh
+```
+
 The script does this:
 - set various env variables
-- create a `spackenv` folder with the necessary dependencies
-- create a `julia` project with the necessary dependencies in `juliaenv`
+- create a `spackenv` folder with the necessary dependencies (spack only)
 - create a python virtual env in `venv` 
 - call `pip install -e .` for development
 - create the test folder `tiny_CI_test`
 - fill it with the necessary data
 
-If a folder is present (`spackenv`, `venv`, `juliaenv`) the script skips that installation step assuming that is already done. If any of the folders are missing, the script redoes the setup. 
+If a folder is present (`spackenv`, `venv`) the script skips that installation step assuming that is already done. If any of the folders are missing, the script redoes the setup. 
 
 The environment is still set as it is needed. 
 
-You can always modify them and recall `setup.sh`. It will not override your changes. 
+You can always modify them and recall the setup script. It will not override your changes. 
 
 ### Test
 
@@ -44,7 +49,7 @@ You just need to go to `tiny_CI_test` and run. The simulation is too slow with j
 
 ```bash
 cd tiny_CI_test
-mpirun -np 8 multiscale-run compute
+mpirun -np 12 multiscale-run compute
 ```
 
 #### Note
