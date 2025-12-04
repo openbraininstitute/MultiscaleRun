@@ -24,12 +24,8 @@ You just need to run the setup script at least once before running the simulatio
 source setup.sh
 ```
 
-**Without Spack** (uses Homebrew on macOS):
-```bash
-source setup_no_spack.sh
-```
+The script does:
 
-The script does this:
 - set various env variables
 - create a `spackenv` folder with the necessary dependencies (spack only)
 - create a python virtual env in `venv` 
@@ -38,6 +34,47 @@ The script does this:
 - fill it with the necessary data
 
 If a folder is present (`spackenv`, `venv`) the script skips that installation step assuming that is already done. If any of the folders are missing, the script redoes the setup. 
+
+The environment is still set as it is needed. 
+
+You can always modify them and recall the setup script. It will not override your changes. 
+
+**Without Spack** (uses Homebrew on macOS):
+
+In this case we leverage brew. First we need to install a few things:
+
+```bash
+brew install cmake openmpi hdf5-mpi python@3.11 ninja
+```
+
+It is suggested to put the following in your `.zshrc` file to activate
+brew packages on startup:
+
+```bash
+export PATH="/opt/homebrew/bin:$PATH"
+export LDFLAGS="-L/opt/homebrew/opt/openmpi/lib"
+export CPPFLAGS="-I/opt/homebrew/opt/openmpi/include"
+alias python=python3.11
+```
+
+Finally, you need to run this at least once before running simulations:
+
+```bash
+source setup_no_spack.sh
+```
+
+The script does:
+
+- set various env variables
+- create a python virtual env in `venv` with neuron and neurodamus
+- build `libsonatareport`
+- build the correct `neurodamus-models`
+- call `pip install -e .` for development
+- create the test folder `tiny_CI_test`
+- fill it with the necessary data
+
+
+If a folder is present (`libsonatareport`, `neurodamus-models`, `venv`) the script skips that installation step assuming that is already done. If any of the folders are missing, the script redoes the setup. 
 
 The environment is still set as it is needed. 
 

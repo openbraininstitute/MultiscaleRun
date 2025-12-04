@@ -4,10 +4,13 @@ test_folder="tiny_CI_test"
 
 export LIBSONATA_ZERO_BASED_GIDS=1
 export OMP_NUM_THREADS=1
+export SONATAREPORT_DIR=$(pwd)/libsonatareport/build/install
+export NEURODAMUS_NEOCORTEX_ROOT=$(pwd)/neurodamus-models/build/install
+export HOC_LIBRARY_PATH=$NEURODAMUS_NEOCORTEX_ROOT/share/neurodamus_neocortex/hoc
+export CORENEURONLIB=$NEURODAMUS_NEOCORTEX_ROOT/lib/libcorenrnmech.dylib
+export NRNMECH_LIB_PATH=$NEURODAMUS_NEOCORTEX_ROOT/lib/libnrnmech.dylib
 
 deactivate
-
-brew install cmake openmpi hdf5-mpi python@3.11 ninja
 
 if [ -d "venv" ]; then
   echo "Found existing venv directory. Just load env"
@@ -29,46 +32,36 @@ fi
 
 if [ ! -d "libsonatareport" ]; then
     git clone git@github.com:openbraininstitute/libsonatareport.git --recursive --depth=1
-fi
-
-export SONATAREPORT_DIR=$(pwd)/libsonatareport/build/install
-
-cmake -B libsonatareport/build -S libsonatareport \
+    cmake -B libsonatareport/build -S libsonatareport \
     -DCMAKE_INSTALL_PREFIX=$SONATAREPORT_DIR -DCMAKE_BUILD_TYPE=Release -DSONATA_REPORT_ENABLE_SUBMODULES=ON -DSONATA_REPORT_ENABLE_MPI=ON -GNinja
 
-cmake --build libsonatareport/build
-cmake --install libsonatareport/build
-
-if [ ! -d "neurodamus-models" ]; then
-    git clone git@github.com:openbraininstitute/neurodamus-models.git
+    cmake --build libsonatareport/build
+    cmake --install libsonatareport/build
 fi
 
-Build neocortex model
-export CC=$(which mpicc)
-export CXX=$(which mpicxx)
-DATADIR=$(python -c "import neurodamus; from pathlib import Path; print(Path(neurodamus.__file__).parent / 'data')")
+if [ ! -d "neurodamus-models" ]; then
+  git clone git@github.com:openbraininstitute/neurodamus-models.git
 
-export NEURODAMUS_NEOCORTEX_ROOT=$(pwd)/neurodamus-models/build/install
+  export CC=$(which mpicc)
+  export CXX=$(which mpicxx)
+  DATADIR=$(python -c "import neurodamus; from pathlib import Path; print(Path(neurodamus.__file__).parent / 'data')")
 
-cmake -B neurodamus-models/build -S neurodamus-models/ \
-    -DPython_EXECUTABLE=$(which python) \
-    -DCMAKE_INSTALL_PREFIX=$NEURODAMUS_NEOCORTEX_ROOT \
-    -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=ON \
-    -DNEURODAMUS_CORE_DIR=${DATADIR} \
-    -DCMAKE_PREFIX_PATH=$SONATAREPORT_DIR \
-    -DNEURODAMUS_MECHANISMS=neocortex \
-    -DNEURODAMUS_ENABLE_CORENEURON=OFF \
-    -DNEURODAMUS_NCX_V5=ON \
-    -DNEURODAMUS_NCX_METABOLISM=ON \
-    -DNEURODAMUS_NCX_NGV=ON \
-    -GNinja
+  cmake -B neurodamus-models/build -S neurodamus-models/ \
+      -DPython_EXECUTABLE=$(which python) \
+      -DCMAKE_INSTALL_PREFIX=$NEURODAMUS_NEOCORTEX_ROOT \
+      -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=ON \
+      -DNEURODAMUS_CORE_DIR=${DATADIR} \
+      -DCMAKE_PREFIX_PATH=$SONATAREPORT_DIR \
+      -DNEURODAMUS_MECHANISMS=neocortex \
+      -DNEURODAMUS_ENABLE_CORENEURON=OFF \
+      -DNEURODAMUS_NCX_V5=ON \
+      -DNEURODAMUS_NCX_METABOLISM=ON \
+      -DNEURODAMUS_NCX_NGV=ON \
+      -GNinja
 
-cmake --build neurodamus-models/build
-cmake --install neurodamus-models/build
-
-export HOC_LIBRARY_PATH=$NEURODAMUS_NEOCORTEX_ROOT/share/neurodamus_neocortex/hoc
-export CORENEURONLIB=$NEURODAMUS_NEOCORTEX_ROOT/lib/libcorenrnmech.dylib
-export NRNMECH_LIB_PATH=$NEURODAMUS_NEOCORTEX_ROOT/lib/libnrnmech.dylib
+  cmake --build neurodamus-models/build
+  cmake --install neurodamus-models/build
+fi
 
 pip install -e .
 
