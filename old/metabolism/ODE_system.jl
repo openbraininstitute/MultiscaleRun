@@ -802,4 +802,6 @@ du[180] = 0
 du[181] = 0
 du[182] = notBigg_psiPHK_a(u_ca2_c_a,u_glycogen_c_a,u_g1p_c_a,u_notBigg_PHKa_c_a,u_notBigg_GPa_c_a,u_udpg_c_a)
 du[183] = -notBigg_psiPHK_a(u_ca2_c_a,u_glycogen_c_a,u_g1p_c_a,u_notBigg_PHKa_c_a,u_notBigg_GPa_c_a,u_udpg_c_a)
+
+error("Debug stop")
 end

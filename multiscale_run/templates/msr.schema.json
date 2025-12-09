@@ -138,47 +138,17 @@
           "type": "integer",
           "description": "Time step of the simulator. Measured in number of Neurodamus time steps."
         },
-        "u0_path": {
-          "type": "string",
-          "description": "Path to the CSV file providing the initial values of the Metabolism model."
-        },
-        "julia_code_path": {
-          "type": "string",
-          "description": "Path to the main Julia model file."
-        },
-        "model": {
-          "type": "object",
-          "description": "Provides additional variables to the Metabolism model.",
-          "additionalProperties": false,
-          "properties": {
-            "model_path": {
-              "type": "string",
-              "description": "Base path to the additional includes."
-            },
-            "pardir_path": {
-              "type": "string",
-              "description": "Base path to the additional parameters required by the Metabolism model."
-            },
-            "includes": {
-              "description": "Additional includes required for the main Julia model to function.",
-              "type": "array",
-              "items": {
-                "type": "string"
-              }
-            },
-            "constants": {
-              "description": "Additional constants required by the julia model.",
-              "type": "object"
-            }
-          }
-        },
         "constants": {
           "description": "Constant necessary for the Metabolism manager of MultiscaleRun.",
           "type": "object"
         },
+        "u0": {
+          "description": "List of initial inputs of the Metabolism model. They are the inputs (except `vm`) in order of the main Julia model file. During initialization (before any advance for any simulator), the connections to `metabolism` may replace these values. In that case, and only in this case, the `merge` action is downgraded to a `set` action.",
+          "type": "object"
+        },
         "parameters": {
-          "description": "List of parameters of the Metabolism model. They are the inputs (except `vm`) in order of the main Julia model file. During initialization (before any advance for any simulator), the connections to `metabolism` may replace these values. In that case, and only in this case, the `merge` action is downgraded to a `set` action.",
-          "type": "array"
+          "description": "List of initial parameters of the Metabolism model. They are the inputs (except `vm`) of the model. During initialization (before any advance for any simulator), the connections to `metabolism` may replace these values. In that case, and only in this case, the `merge` action is downgraded to a `set` action.",
+          "type": "object"
         },
         "solver_kwargs": {
           "description": "Parameters for the solver of the Metabolism model. The solver is currently: `de.Rosenbrock23`.",
@@ -188,16 +158,13 @@
           "description": "This a list of checks that are performed on the Metabolism inputs (parameters and vm) for every Metabolism time steps to verify integrity of the inputs. Items are optional. The parameters and vms that are not mentioned in this list are still checked to be normal numbers (no inf, nan is allowed). For example:",
           "type": "object",
             "properties": {
-              "parameters": {"$ref":  "#/$defs/bloodflow_check"},
-              "vm": {"$ref":  "#/$defs/bloodflow_check"}
+              "parameters": {"$ref":  "#/$defs/input_check"},
+              "vm": {"$ref":  "#/$defs/input_check"}
             }
         }
       },
       "required": [
-        "julia_code_path",
-        "model",
-        "ndts",
-        "u0_path"
+        "ndts"
       ]
     },
     "steps": {
@@ -367,50 +334,32 @@
         ]
       }
     },
-    "bloodflow_check": {
+    "input_check": {
       "type": "object",
       "additionalProperties": false,
       "unevaluatedProperties": false,
       "patternProperties": {
-        "^[0-9]+$":{
+        "^[A-Za-z_][A-Za-z0-9_]*$": {
           "type": "object",
+          "additionalProperties": false,
           "properties": {
-            "name": {
-              "description": "Name of the parameter. Effectively unused in the simulation. Useful for the operator.",
-              "type": "string"
-            },
             "kwargs": {
               "description": "Arguments of the checking routine. Its entries are optional.",
               "type": "object",
               "additionalProperties": false,
               "properties": {
-                "lb": {
-                  "type": "number",
-                  "description": "Lower bound."
-                },
-                "leb": {
-                  "type": "number",
-                  "description": "Lower or equal bound."
-                },
-                "hb": {
-                  "type": "number",
-                  "description": "Higher bound"
-                },
-                "heb": {
-                  "type": "number",
-                  "description": "Higher or equal bound"
-                }
+                "lb":  { "type": "number", "description": "Lower bound" },
+                "leb": { "type": "number", "description": "Lower or equal bound" },
+                "hb":  { "type": "number", "description": "Higher bound" },
+                "heb": { "type": "number", "description": "Higher or equal bound" }
               }
             },
             "response": {
-              "description": "Response applied if one of the values does not pass the check.",
+              "description": "Response applied if the value does not pass the check.",
               "type": "string"
             }
           },
-          "required": [
-            "name",
-            "response"
-          ]
+          "required": ["response"]
         }
       }
     },

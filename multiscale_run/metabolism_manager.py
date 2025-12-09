@@ -3,9 +3,10 @@ import logging
 
 import libsonata
 import numpy as np
-import pandas as pd
+from scipy.integrate import solve_ivp
 
 from . import config, utils
+from .metabolism import constants, indexes, initial_conditions, model
 
 
 class MsrMetabManagerException(Exception):
@@ -22,17 +23,8 @@ class MsrAbortSimulationException(Exception):
     """This error should not be recoverable. Something went very wrong and continuing the simulation is meaningless"""
 
 
-class MsrMetabolismParam(enum.Enum):
-    ina_density = 0
-    ik_density = 1
-    mito_scale = 2
-    bloodflow_Fin = 3
-    bloodflow_Fout = 4
-    bloodflow_vol = 5
-
-
 class MsrMetabolismManager:
-    """Wrapper to manage the metabolism julia model"""
+    """Wrapper to manage the metabolism model"""
 
     errors = {
         "abort_simulation": MsrAbortSimulationException,
@@ -40,28 +32,54 @@ class MsrMetabolismManager:
     }
 
     def __init__(self, config, neuron_pop_name: str, raw_gids: list[int]):
-        """Initialize the MsrMetabolismManager.
+        """
+        Initialize the MsrMetabolismManager.
 
         Args:
-            config: The configuration for the metabolism manager.
-            main: An instance of the main class.
-            neuron_pop_name: The name of the neuron population.
-            gids: list of cells to reset.
+            config: Full multiscale configuration object controlling metabolism behavior.
+            neuron_pop_name: Name of the neuron population to which these gids belong.
+            raw_gids: List of cell gids managed by this metabolism instance.
+
+        Concepts:
+            vm:
+                2D array of shape (ngids x nu0).
+                Represents the *dynamic state variables* of the metabolism model.
+                It is initialized from the model's default u0 vector and updated over time.
+
+            u0:
+                The default initial state vector of the metabolism model.
+                Defines the starting membrane and metabolic variables for a single cell
+                before tiling to all gids. At t0 `vm` is essentially the per-gid copy of u0.
+                After, vm evolves from that.
+
+            parameters:
+                2D array of shape (ngids  nparams).
+                Contains per-cell biophysical parameters controlling reaction rates,
+                transport coefficients, volumes, scaling factors, etc.
+                Starts from a default parameter vector and may be overridden by config.
+
+                Differently from vm it does not evolve in the metabolism model. However,
+                it may change in neurodamus or other parts of the code.
+
+            constants:
+                A collection of dataclass-based, global immutable values used by the
+                metabolism equations. These define universal physical constants,
+                stoichiometric coefficients, geometry-independent factors, etc.
+                They can be selectively overridden via the configuration.
+
+                They should not change during the simulation.
+
         """
         self.config = config
-        from julia import Main as JMain
 
-        self.JMain = JMain
-        self.JMain.eval("using DifferentialEquations: ODEProblem, solve, Rosenbrock23")
-        self.load_metabolism_data()
-        self.gen_metabolism_model()
-        self.vm = None  # read/write values for metab
-        self.parameters = None  # read values for metab
+        self.vm = None  
+        self.parameters = None 
         self.tspan_m = (-1, -1)
         self.neuron_node_pop = libsonata.CircuitConfig.from_file(
             str(self.config.config_path.parent / self.config.network)
         ).node_population(neuron_pop_name)
-        self.reset(raw_gids)
+        self.raw_gids = raw_gids
+        self.reset()
 
     def get_error(self, key: str):
         try:
@@ -74,24 +92,39 @@ class MsrMetabolismManager:
     @property
     def ngids(self):
         """Gid number"""
-        return self.parameters.shape[0]
+        return len(self.raw_gids)
+    
+    @staticmethod
+    def _strIdx2idx(idx_type, idxs):
+        """Convert string index to actual index based on PIdx or UIdx"""
+        if not isinstance(idxs, list):
+            return getattr(idx_type, idxs)
+        return [getattr(idx_type, i) for i in idxs]
 
-    def set_parameters_idxs(self, vals: list[float], idxs: list[int]):
+    def set_parameters_idxs(self, vals: list[float], idxs: list[str] | str):
         """Set one or more parameters slices equal to the vals list"""
+        if not isinstance(idxs, list):
+            idxs = [idxs]
+        idxs = self._strIdx2idx(indexes.PIdx, idxs)
         for idx in idxs:
             self.parameters[:, idx] = vals
 
-    def set_vm_idxs(self, vals, idxs):
+    def set_vm_idxs(self, vals, idxs: list[str] | str):
         """Set one or more vm slices equal to the vals list"""
+        if not isinstance(idxs, list):
+            idxs = [idxs]
+        idxs = self._strIdx2idx(indexes.UIdx, idxs)
         for idx in idxs:
             self.vm[:, idx] = vals
 
-    def get_parameters_idx(self, idx):
+    def get_parameters_idx(self, idx: str):
         """Get parameters slice"""
+        idx = self._strIdx2idx(indexes.PIdx, idx)
         return self.parameters[:, idx]
 
-    def get_vm_idx(self, idx):
+    def get_vm_idx(self, idx: str):
         """Get vm slice"""
+        idx = self._strIdx2idx(indexes.UIdx, idx)
         return self.vm[:, idx]
 
     def alive_gids(self):
@@ -102,52 +135,16 @@ class MsrMetabolismManager:
         return [1] * self.parameters.shape[0]
 
     @utils.logs_decorator
-    def load_metabolism_data(self):
-        """Load metabolism data and parameters from Julia scripts.
-
-        This method loads metabolism data and parameters from Julia scripts if the metabolism type is "main".
-        """
-        # includes
-        cmd = (
-            "\n".join(
-                [
-                    f'include("{item}")'
-                    for item in self.config.multiscale_run.metabolism.model.includes
-                ]
-            )
-            + "\n"
-            + "\n".join(
-                [
-                    f"{k} = {v}"
-                    for k, v in self.config.multiscale_run.metabolism.model.constants.items()
-                ]
-            )
-        )
-        self.JMain.eval(cmd)
-
-    @utils.logs_decorator
-    def gen_metabolism_model(self):
-        """Generate the metabolism model from Julia code.
-
-        This method generates the metabolism model using Julia code.
-
-        Returns:
-            None
-        """
-        with open(str(self.config.multiscale_run.metabolism.julia_code_path), "r") as f:
-            julia_code = f.read()
-        self.model = self.JMain.eval(julia_code)
-
-    @utils.logs_decorator
     def _advance_gid(self, igid: int, i_metab: int, failed_cells: list[str]):
-        """Advance metabolism simulation for gid: gids[igid].
+        """Advance metabolism simulation for gid: gids[igid] using Python.
+
         Args:
             igid: Index of the gid.
             i_metab: metabolism, time step counter.
             failed_cells: List of errors for the failed cells.
                 Cells that are alive have `None` as value here.
         Raises:
-            MsrMetabManagerException: If sol is None.
+            MsrMetabManagerException: If solver fails.
         """
 
         metab_dt = self.config.metabolism_dt
@@ -156,27 +153,28 @@ class MsrMetabolismManager:
             1e-3 * (float(i_metab) + 1.0) * metab_dt,
         )
 
-        J = self.JMain
-        # Assign model and convert inputs
-        J.model = self.model
-        J.u0 = self.vm[igid, :].astype(float)
-        J.p = self.parameters[igid, :].astype(float)
-        J.tspan = tuple(float(x) for x in tspan_m)
+        u0 = self.vm[igid, :]
+        p = self.parameters[igid, :]
 
         try:
             logging.info(f"   solve ODE problem {igid}/{self.ngids}")
-            J.eval("""
-                prob = ODEProblem(model, u0, tspan, p)
-                sol = solve(prob, Rosenbrock23(autodiff=false))
-            """)
-            retcode = J.eval("sol.retcode")
+
+            # solve_ivp expects a function f(t, u)
+            sol = solve_ivp(
+                lambda t, u: model.compute_du(u, p, t),
+                tspan_m,
+                u0,
+                vectorized=False,
+                **self.config.multiscale_run.metabolism.solver_kwargs
+            )
+
             logging.info("   /solve ODE problem")
 
-            if str(retcode) != "<PyCall.jlwrap Success>":
-                utils.rank_print(f" !!! sol.retcode: {str(retcode)}")
-                failed_cells[igid] = f"solver failed: {str(retcode)}"
+            if not sol.success:
+                utils.rank_print(f" !!! solver failed: {sol.message}")
+                failed_cells[igid] = f"solver failed: {sol.message}"
             else:
-                self.vm[igid, :] = J.eval("sol.u[end]")
+                self.vm[igid, :] = sol.y[:, -1]
 
         except Exception as e:
             failed_cells[igid] = f"solver failed: {str(e)}"
@@ -213,9 +211,9 @@ class MsrMetabolismManager:
         """
         # layer_idx: layers are 1-based while python vectors are 0-based
         layer_idx = int(self.neuron_node_pop.get_attribute("layer", raw_gid)) - 1
-        glycogen_au = np.array(self.config.multiscale_run.metabolism.constants.glycogen_au)
+        glycogen_au = np.array(constants.Glycogen.au)
         mito_volume_fraction = np.array(
-            self.config.multiscale_run.metabolism.constants.mito_volume_fraction
+            constants.GeneralConstants.mito_volume_fraction
         )
         glycogen_scaled = glycogen_au * (14.0 / max(glycogen_au))
         mito_volume_fraction_scaled = mito_volume_fraction * (1.0 / max(mito_volume_fraction))
@@ -224,117 +222,145 @@ class MsrMetabolismManager:
             mito_volume_fraction_scaled[layer_idx],
         )
 
+
     @utils.logs_decorator
-    def reset(self, raw_gids: list[int]):
+    def reset(self):
         """Reset the parameters and initial conditions for metabolic simulation.
+        """
+        self.reset_constants()
+        self.reset_u0()
+        self.reset_parameters()
+        
+    def reset_u0(self):
+        """
+        Initialize the initial input vector (u0) for all gids.
 
-        Args:
-            raw_gids: List of cells to reset without offset.
+        - Builds the default u0 vector via `initial_conditions.make_u0()`.
+        - Applies per-model overrides if `metabolism.u0` is present in the config.
+        - Tiles the resulting vector to shape (ngids, nvars) and stores it in `self.vm`.
 
-        Returns:
-            None
+        This resets the *dynamic* state variables to their initial values.
         """
         metab_conf = self.config.multiscale_run.metabolism
-        mito_scale_idx = MsrMetabolismParam.mito_scale.value
+        u0 = initial_conditions.make_u0()
+        if "u0" in metab_conf:
+            initial_conditions.override(u0, indexes.UIdx, metab_conf.u0)
+        self.vm = np.tile(u0, (self.ngids, 1))
 
-        ngids = len(raw_gids)
-        self.vm = np.tile(
-            pd.read_csv(metab_conf.u0_path, sep=",", header=None)[0].tolist(),
-            (ngids, 1),
-        )
+    def reset_parameters(self):
+        """
+        Initialize parameter vectors for all gids.
 
-        self.parameters = np.tile(metab_conf.parameters, (ngids, 1))
+        - Builds the default parameter vector via `initial_conditions.make_parameters()`.
+        - Applies config overrides when `metabolism.parameters` is provided.
+        - Tiles the parameter vector to (ngids, nparams) and stores it in `self.parameters`.
 
-        # TODO this may be made more general. Atm it has low priority.
+        Automatic rule:
+        If `mito_scale` is not explicitly set in the config, compute it per-gid using
+        `_get_GLY_a_and_mito_vol_frac()` and override the corresponding column.
 
-        self.parameters[:, mito_scale_idx] = [
-            self._get_GLY_a_and_mito_vol_frac(c_gid)[1] for c_gid in raw_gids
-        ]
+        This resets *biophysical parameters* while allowing selective overrides.
+        """
+        metab_conf = self.config.multiscale_run.metabolism
+        p0 = initial_conditions.make_parameters()
+        if "parameters" in metab_conf:
+            initial_conditions.override(p0, indexes.PIdx, metab_conf.parameters)
+        self.parameters = np.tile(p0, (self.ngids, 1))
+        # auto-override if not specifically stated in the conf
+        if "mito_scale" not in metab_conf.parameters:
+            self.parameters[:, indexes.PIdx.mito_scale] = [
+                self._get_GLY_a_and_mito_vol_frac(c_gid)[1] for c_gid in self.raw_gids
+            ]
 
-    def _check_input_for_currently_valid_gids(
-        self,
-        vec: np.ndarray,
-        check_value_kwargs: dict,
-        err,
-        msg_func,
-        failed_cells: list[str],
-    ):
-        """Check input values for every valid gid.
+    def reset_constants(self):
+        """
+        Override constant dataclass fields defined under `metabolism.constants`.
 
-        Args:
-            vec: Input array.
-            check_value_kwargs: Keyword arguments for value checking.
-            err: Error argument.
-            msg_func: Message argument. It is a callable that requires the gid.
-            failed_cells: List of failed cells.
+        For each class name:
+        - Retrieve the corresponding class from `constants`.
+        - Ensure it is a dataclass.
+        - Validate that all provided keys exist on the dataclass.
+        - Convert list values to tuples.
+        - Apply overrides via `setattr`.
 
-        Notes:
-            `check_value` can throw exceptions. `MsrExcludeNeuronException` is recoverable by marking
-            the neuron as broken and kicking it out of the simulation. The others are not.
+        Raises:
+            TypeError: if the target class is not a dataclass.
+            AttributeError: if an override key does not exist on the dataclass.
+        """
+        metab_conf = self.config.multiscale_run.metabolism
+        for cls_name, fields in metab_conf.constants.items():
+            # Will throw if class doesn't exist
+            cls = getattr(constants, cls_name)  
+
+            # Get the allowed dataclass fields
+            if not hasattr(cls, "__dataclass_fields__"):
+                raise TypeError(f"{cls_name} is not a dataclass")
+
+            allowed_keys = cls.__dataclass_fields__.keys()
+
+            for key, value in fields.items():
+                if key not in allowed_keys:
+                    raise AttributeError(
+                        f"{cls_name} has no attribute '{key}'. Available keys: {list(allowed_keys)}"
+                    )
+                if isinstance(value, list):
+                    value = tuple(value)
+                setattr(cls, key, value)
+
+    def _check_input(self, v, conf, input_type, input_name, msg, failed_cells):
+        """
+        Validate a specific input field across all gids.
+
+        Arguments:
+            v:            2D array (ngids x nvars or nparams) containing values to check
+                          (self.paramters or self.vm).
+            conf:         Configuration dict for this check (kwargs, response policy, etc.).
+            input_type:   Enum-like class providing the index (PIdx or UIdx).
+            input_name:   Name of the field to check.
+            msg:          Base message prefix for error reporting.
+            failed_cells: List tracking gids excluded due to validation failures.
+
+        Behavior:
+            - Skips gids already marked as failed.
+            - Retrieves index of the field.
+            - Validates each value using `utils.check_value()`.
+            - Marks gids as failed if `MsrExcludeNeuronException` is raised.
         """
         for igid in range(self.ngids):
             if failed_cells[igid] is not None:
                 continue
+            idx = getattr(input_type, input_name)
+            kwargs = conf.get("kwargs", {})
+            err = self.get_error(conf.get("response", "abort_simulation"))
+            gid = self.raw_gids[igid]
+            msg += f".{input_name} (gid: {gid}) ({idx}): "
+            for igid in range(self.ngids):
+                if failed_cells[igid] is not None:
+                    continue
+                try:
+                    utils.check_value(v=v[igid, idx], **kwargs, err=err, msg=msg)
+                except MsrExcludeNeuronException as e:
+                    failed_cells[igid] = str(e)
 
-            try:
-                utils.check_value(v=vec[igid], **check_value_kwargs, err=err, msg=msg_func(igid))
-            except MsrExcludeNeuronException as e:
-                failed_cells[igid] = str(e)
 
     @utils.logs_decorator
     def check_inputs(self, failed_cells: list[str]) -> None:
-        """Check that some values stay in the prescribed bands
-
-        Loop over the inputs that require checking. Print in the logging for the same VIP values.
-        If no checking is specified in the config file just check that the values are still proper floats.
-
-        Args:
-            failed_cells: List of errors for the failed cells. Cells that are alive have `None` as value here.
         """
-        base_ck_conf = {"kwargs": {}, "response": "abort_simulation", "name": ""}
+        Run all configured input validations for parameters and vm.
 
-        d = self.config.multiscale_run.metabolism.checks.parameters
-        checks = [d.get(str(idx), base_ck_conf) for idx in range(self.parameters.shape[1])]
+        - Reads `metabolism.checks` from the config.
+        - Delegates each individual check to `_check_input`.
+        - Populates `failed_cells` with error messages for gids that fail.
 
-        for idx, ck_conf in enumerate(checks):
+        If no checks are configured, returns immediately.
+        """
+        metab_conf = self.config.multiscale_run.metabolism
+        if "checks" not in metab_conf:
+            return
+        if "parameters" in metab_conf.checks:
+            for parameter_name, conf in metab_conf.checks.parameters.items():
+                    self._check_input(v=self.parameters, input_type=indexes.PIdx, input_name=parameter_name, conf=conf, msg="paramter", failed_cells=failed_cells)
 
-            def msg_func(igid):
-                return f"parameters[{igid}, {idx}], {ck_conf['name']}"
-
-            self._check_input_for_currently_valid_gids(
-                vec=self.parameters[:, idx],
-                check_value_kwargs=ck_conf["kwargs"],
-                err=self.get_error(ck_conf["response"]),
-                msg_func=msg_func,
-                failed_cells=failed_cells,
-            )
-            if str(idx) in self.config.multiscale_run.metabolism.checks.parameters:
-                name = ck_conf["name"]
-                utils.log_stats(
-                    vec=self.parameters[:, idx],
-                    **ck_conf["kwargs"],
-                    msg=f"parameters[:,  {idx}], {name}{' ' * (16 - len(name))}",
-                )
-
-        d = self.config.multiscale_run.metabolism.checks.vm
-        checks = [d.get(str(idx), base_ck_conf) for idx in range(self.vm.shape[1])]
-
-        for idx, ck_conf in enumerate(checks):
-
-            def msg_func(igid):
-                return f"vm[{igid}, {idx}], {ck_conf['name']}"
-
-            self._check_input_for_currently_valid_gids(
-                vec=self.vm[:, idx],
-                check_value_kwargs=ck_conf["kwargs"],
-                err=self.get_error(ck_conf["response"]),
-                msg_func=msg_func,
-                failed_cells=failed_cells,
-            )
-            if str(idx) in self.config.multiscale_run.metabolism.checks.vm:
-                name = ck_conf["name"]
-                utils.log_stats(
-                    vec=self.vm[:, idx],
-                    **ck_conf["kwargs"],
-                    msg=f"    vm[:, {idx}], {name}{' ' * (16 - len(name))}",
-                )
+        if "vm" in metab_conf.checks:
+            for vm_name, conf in metab_conf.checks.vm.items():
+                    self._check_input(v=self.vm, input_type=indexes.UIdx, input_name=vm_name, conf=conf, msg="vm", failed_cells=failed_cells)
