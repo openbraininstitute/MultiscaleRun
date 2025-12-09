@@ -348,10 +348,10 @@
               "type": "object",
               "additionalProperties": false,
               "properties": {
-                "lb":  { "type": "number" },
-                "leb": { "type": "number" },
-                "hb":  { "type": "number" },
-                "heb": { "type": "number" }
+                "lb":  { "type": "number", "description": "Lower bound" },
+                "leb": { "type": "number", "description": "Lower or equal bound" },
+                "hb":  { "type": "number", "description": "Higher bound" },
+                "heb": { "type": "number", "description": "Higher or equal bound" }
               }
             },
             "response": {
