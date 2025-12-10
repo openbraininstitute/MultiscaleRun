@@ -15,6 +15,15 @@ export HOC_LIBRARY_PATH=$NEURODAMUS_NEOCORTEX_ROOT/share/neurodamus_neocortex/ho
 export CORENEURONLIB=$NEURODAMUS_NEOCORTEX_ROOT/lib/libcorenrnmech.dylib
 export NRNMECH_LIB_PATH=$NEURODAMUS_NEOCORTEX_ROOT/lib/libnrnmech.dylib
 
+export HDF5_INCLUDEDIR=$(brew --prefix hdf5-mpi)/include
+export HDF5_LIBDIR=$(brew --prefix hdf5-mpi)/lib
+export CC=$(which mpicc)
+export CXX=$(which mpicxx)
+export HDF5_MPI="ON" 
+export HDF5_INCLUDEDIR=$HDF5_INCLUDEDIR 
+export HDF5_LIBDIR=$HDF5_LIBDIR
+export MPICC=$(brew --prefix openmpi)/bin/mpicc
+
 deactivate
 
 if [ -d "venv" ]; then
@@ -26,11 +35,8 @@ else
   pip install --upgrade pip
   pip install NEURON-nightly cython
   pip cache purge
-  MPICC=$(brew --prefix openmpi)/bin/mpicc pip install --no-binary=mpi4py mpi4py
-  export HDF5_INCLUDEDIR=$(brew --prefix hdf5-mpi)/include
-  export HDF5_LIBDIR=$(brew --prefix hdf5-mpi)/lib
+  pip install --no-binary=mpi4py mpi4py
   python -m pip install --upgrade pip setuptools
-  CC="mpicc" HDF5_MPI="ON" HDF5_INCLUDEDIR=$HDF5_INCLUDEDIR HDF5_LIBDIR=$HDF5_LIBDIR \
   pip install --no-cache-dir --no-binary=h5py h5py --no-build-isolation
   pip install neurodamus morphio
 fi
@@ -47,8 +53,6 @@ fi
 if [ ! -d "neurodamus-models" ]; then
   git clone https://github.com/openbraininstitute/neurodamus-models.git
 
-  export CC=$(which mpicc)
-  export CXX=$(which mpicxx)
   DATADIR=$(python -c "import neurodamus; from pathlib import Path; print(Path(neurodamus.__file__).parent / 'data')")
 
   cmake -B neurodamus-models/build -S neurodamus-models/ \
