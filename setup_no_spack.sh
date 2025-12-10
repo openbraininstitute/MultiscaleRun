@@ -36,7 +36,7 @@ else
 fi
 
 if [ ! -d "libsonatareport" ]; then
-    git clone git@github.com:openbraininstitute/libsonatareport.git --recursive --depth=1
+    git clone https://github.com/openbraininstitute/libsonatareport.git --recursive --depth=1
     cmake -B libsonatareport/build -S libsonatareport \
     -DCMAKE_INSTALL_PREFIX=$SONATAREPORT_DIR -DCMAKE_BUILD_TYPE=Release -DSONATA_REPORT_ENABLE_SUBMODULES=ON -DSONATA_REPORT_ENABLE_MPI=ON -GNinja
 
@@ -45,7 +45,7 @@ if [ ! -d "libsonatareport" ]; then
 fi
 
 if [ ! -d "neurodamus-models" ]; then
-  git clone git@github.com:openbraininstitute/neurodamus-models.git
+  git clone https://github.com/openbraininstitute/neurodamus-models.git
 
   export CC=$(which mpicc)
   export CXX=$(which mpicxx)
