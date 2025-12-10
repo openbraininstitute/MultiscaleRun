@@ -47,16 +47,6 @@ In this case we leverage brew. First we need to install a few things:
 brew install cmake openmpi hdf5-mpi python@3.11 ninja
 ```
 
-It is suggested to put the following in your `.zshrc` file to activate
-brew packages on startup:
-
-```bash
-export PATH="/opt/homebrew/bin:$PATH"
-export LDFLAGS="-L/opt/homebrew/opt/openmpi/lib"
-export CPPFLAGS="-I/opt/homebrew/opt/openmpi/include"
-alias python=python3.11
-```
-
 Finally, you need to run this at least once before running simulations:
 
 ```bash
