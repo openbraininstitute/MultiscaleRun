@@ -64,6 +64,9 @@ dependencies = [
     "neurodamus",
     # "h5py[mpi]",
     # "trimesh>=3",
+    # "NEURON-nightly",
+    # "neurodamus",
+    # "morphio"
 ]
 dynamic = ["version"]
 
