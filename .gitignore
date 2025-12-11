@@ -98,3 +98,7 @@ tiny_CI_test/
 
 # profiling
 prof/
+
+# dependencies
+libsonatareport
+neurodamus-models
