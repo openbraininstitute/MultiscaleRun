@@ -39,7 +39,10 @@ class MsrSimulation:
 
     @_run_once
     def warmup(self):
-        """Instantiate the simulators in the proper and sensitive order"""
+        """Instantiate the simulators in the proper and sensitive order.
+        
+        Initializes MPI, imports neurodamus, and loads all manager modules.
+        """
         logging.info("warmup simulators...")
         # this needs to be before "import neurodamus" and before MPI4PY otherwise mpi hangs
 
@@ -62,7 +65,10 @@ class MsrSimulation:
 
     @_run_once
     def init_multiscale_run(self):
-        """TODO"""
+        """Initialize multiscale run configuration and core components.
+        
+        Sets up config, preprocessor, connection manager, and time tracking.
+        """
         from multiscale_run import config, connection_manager, preprocessor
         from multiscale_run import utils as msr_utils
         self.config = config.MsrConfig(self._base_path)
@@ -84,7 +90,11 @@ class MsrSimulation:
 
     @_run_once
     def init_neurodamus(self):
-        """TODO"""
+        """Initialize the Neurodamus simulator manager.
+        
+        Creates neurodamus manager, sets up logging, initializes failed cells tracking,
+        and establishes neuron-to-neuron connections.
+        """
 
         from multiscale_run import (
             neurodamus_manager,
@@ -103,6 +113,10 @@ class MsrSimulation:
 
     @_run_once
     def init_metabolism(self):
+        """Initialize the metabolism simulator manager if active.
+        
+        Creates metabolism manager only if metabolism is enabled in config.
+        """
         self.managers["metabolism"] = None
         if self.config.is_metabolism_active():
             from multiscale_run import (
@@ -123,6 +137,10 @@ class MsrSimulation:
 
     @_run_once
     def init(self):
+        """Initialize the complete simulation setup.
+        
+        Orchestrates warmup and initialization of all simulation components.
+        """
         self.warmup()
         from neurodamus.utils.timeit import timeit
         logging.info("init simulation")
