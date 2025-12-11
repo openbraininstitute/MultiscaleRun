@@ -53,6 +53,16 @@ class MsrReporter:
         return f"/report/{self.config.multiscale_run.preprocessor.node_sets.neuron_population_name}"
 
     def _file_path(self, title, rep, is_post_adv=False):
+        """Constructs the file path for report output.
+
+        Args:
+            title (str): Report title.
+            rep (dict): Report configuration.
+            is_post_adv (bool): Whether this is a post-advancement report.
+
+        Returns:
+            Path: The constructed file path.
+        """
         file_name = Path(rep.file_name if "file_name" in rep else title).with_suffix('.h5')
         if is_post_adv:
             file_name = file_name.with_stem(f"{file_name.stem}_after_adv")
@@ -61,7 +71,13 @@ class MsrReporter:
 
 
     def _init_file(self, title, rep, dt, is_post_adv):
-        """ TODO
+        """Initializes HDF5 file structure for report data.
+
+        Args:
+            title (str): Report title.
+            rep (dict): Report configuration.
+            dt (float): Time step.
+            is_post_adv (bool): Whether this is a post-advancement report.
         """
 
         sim_end = self.config.run.tstop
@@ -87,6 +103,14 @@ class MsrReporter:
             time_dataset.attrs["units"] = self.t_unit
 
     def pick_config_reports_section(self, simulator):
+        """Selects the appropriate reports section from config.
+
+        Args:
+            simulator (str): Simulator name.
+
+        Returns:
+            dict: Reports configuration section.
+        """
         return self.config.reports if simulator == "neurodamus" else self.config.multiscale_run[simulator].reports
 
     def init_files(self, simulator: str, dt: float, is_post_adv):
@@ -98,13 +122,13 @@ class MsrReporter:
         utils.comm().Barrier()
 
     def record(self, idt: int, simulator: object, gids: list[int], is_post_adv: bool):
-        """Records simulation data.
+        """Records simulation data to HDF5 files.
 
         Args:
-            idt: time step index of the current manager.
-            manager_name: current manager.
-            managers: dict of managers
-            TODO
+            idt (int): Time step index.
+            simulator (object): Simulator instance.
+            gids (list[int]): List of GIDs to record.
+            is_post_adv (bool): Whether this is a post-advancement record.
         """
 
         for title, rep in self.pick_config_reports_section(simulator.name).items():
@@ -118,6 +142,15 @@ class MsrReporter:
                 self._save_vals(simulator, rep, f, idt, idxs)
 
     def _save_vals(self, manager, rep, f, idt, idxs):
+        """Saves values to HDF5 dataset.
+
+        Args:
+            manager (object): Simulator manager instance.
+            rep (dict): Report configuration.
+            f (h5py.File): Open HDF5 file handle.
+            idt (int): Time step index.
+            idxs (np.ndarray): Array indices for data placement.
+        """
         dataset = f[f"{self._data_loc}/data"]
 
         if "src_get_func" in rep:
@@ -126,6 +159,7 @@ class MsrReporter:
                 dtype=np.float64,
             )
         else:
+            # this is to get the after_adv reports for neurodamus
             vals = np.array(manager.get_compartment_report_var(rep.variable_name))
 
         if not len(vals):
