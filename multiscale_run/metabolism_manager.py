@@ -96,9 +96,11 @@ class MsrMetabolismManager:
 
     @property
     def raw_gids(self):
+        """List of raw GIDs from neuron connections."""
         return [nc.raw_gid for nc in self.ncs]
 
     def get_error(self, key: str):
+        """Get exception class by error key."""
         try:
             return self.errors[key]
         except KeyError as e:
@@ -112,7 +114,7 @@ class MsrMetabolismManager:
 
     @property
     def ngids(self):
-        """Gid number"""
+        """Number of GIDs managed by this instance."""
         return len(self.raw_gids)
     
     @staticmethod
@@ -204,12 +206,12 @@ class MsrMetabolismManager:
 
     @utils.logs_decorator
     def solve(self, idts: int, failed_cells: list) -> None:
-        """Advance metabolism simulation
+        """Advance metabolism simulation to target time step.
 
         Already failed cells are skipped.
 
         Args:
-            i_metab: metabolism, time step counter.
+            idts: Target time step in neurodamus dt units to advance to.
             failed_cells: List of errors for the failed cells. Cells that are alive have `None` as value here.
         """
         if self.idts + self.ndts <= idts:
