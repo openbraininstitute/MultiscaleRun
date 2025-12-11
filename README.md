@@ -11,13 +11,15 @@ MultiscaleRun is an orchestrator of simulators. Currently, only Neurodamus (NEUR
 
 ### Setup
 
-You just need to run `setup.sh` at least once before running the simulation.
+You just need to run the setup script at least once before running the simulation.
 
+**With Spack** (requires OBI spack installation):
 ```bash
 source setup.sh
 ```
 
-The script does this:
+The script does:
+
 - set various env variables
 - create a `spackenv` folder with the necessary dependencies
 - create a python virtual env in `venv` 
@@ -29,7 +31,38 @@ If a folder is present (`spackenv`, `venv`) the script skips that installation s
 
 The environment is still set as it is needed. 
 
-You can always modify them and recall `setup.sh`. It will not override your changes. 
+You can always modify them and recall the setup script. It will not override your changes. 
+
+**Without Spack** (uses Homebrew on macOS):
+
+In this case we leverage brew. First we need to install a few things:
+
+```bash
+brew install cmake openmpi hdf5-mpi python@3.11 ninja
+```
+
+Finally, you need to run this at least once before running simulations:
+
+```bash
+source setup_no_spack.sh
+```
+
+The script does:
+
+- set various env variables
+- create a python virtual env in `venv` with neuron and neurodamus
+- build `libsonatareport`
+- build the correct `neurodamus-models`
+- call `pip install -e .` for development
+- create the test folder `tiny_CI_test`
+- fill it with the necessary data
+
+
+If a folder is present (`libsonatareport`, `neurodamus-models`, `venv`) the script skips that installation step assuming that is already done. If any of the folders are missing, the script redoes the setup. 
+
+The environment is still set as it is needed. 
+
+You can always modify them and recall the setup script. It will not override your changes. 
 
 ### Test
 
@@ -37,7 +70,7 @@ You just need to go to `tiny_CI_test` and run. The simulation is too slow with j
 
 ```bash
 cd tiny_CI_test
-mpirun -np 8 multiscale-run compute
+mpirun -np 12 multiscale-run compute
 ```
 
 #### Note
