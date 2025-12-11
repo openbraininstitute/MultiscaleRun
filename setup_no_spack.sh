@@ -5,7 +5,7 @@ test_folder="tiny_CI_test"
 export PATH="/opt/homebrew/bin:$PATH"
 export LDFLAGS="-L/opt/homebrew/opt/openmpi/lib"
 export CPPFLAGS="-I/opt/homebrew/opt/openmpi/include"
-alias python=python3.11
+# alias python=python3.11
 
 export LIBSONATA_ZERO_BASED_GIDS=1
 export OMP_NUM_THREADS=1
