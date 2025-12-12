@@ -67,11 +67,11 @@
                     "dest_simulator": "metabolism",
                     "dest_get_func": "get_vm_idx",
                     "dest_get_kwargs": {
-                        "idx": "atp_c_n"
+                        "idx": "ATP_n"
                     },
                     "dest_set_func": "set_vm_idxs",
                     "dest_set_kwargs": {
-                        "idxs": "atp_c_n"
+                        "idxs": "ATP_n"
                     },
                     "action": "merge"
                 },
@@ -104,7 +104,7 @@
                     "dest_simulator": "metabolism",
                     "dest_set_func": "set_vm_idxs",
                     "dest_set_kwargs": {
-                        "idxs": "na1_c_n"
+                        "idxs": "Na_n"
                     },
                     "action": "set"
                 },
@@ -118,7 +118,7 @@
                     "dest_simulator": "metabolism",
                     "dest_set_func": "set_vm_idxs",
                     "dest_set_kwargs": {
-                        "idxs": "k_e_e"
+                        "idxs": "K_out"
                     },
                     "action": "set"
                 },
@@ -159,7 +159,7 @@
                     "dest_simulator": "metabolism",
                     "dest_set_func": "set_vm_idxs",
                     "dest_set_kwargs": {
-                        "idxs": "k_e_e"
+                        "idxs": "K_out"
                     },
                     "action": "set"
                 }
@@ -276,21 +276,21 @@
                     }
                 },
                 "vm": {
-                    "atp_c_n": {
+                    "ATP_n": {
                         "kwargs": {
                             "lb": 0.2,
                             "hb": 2.5
                         },
                         "response": "abort_simulation"
                     },
-                    "k_e_e": {
+                    "K_out": {
                         "kwargs": {
                             "lb": 1,
                             "hb": 10
                         },
                         "response": "abort_simulation"
                     },
-                    "na1_c_n": {
+                    "Na_n": {
                         "kwargs": {
                             "lb": 5,
                             "hb": 35
@@ -331,7 +331,7 @@
                 "metab_atpi": {
                     "src_get_func": "get_vm_idx",
                     "src_get_kwargs": {
-                        "idx": "atp_c_n"
+                        "idx": "ATP_n"
                     },
                     "unit": "mM"
                 },
@@ -345,14 +345,14 @@
                 "metab_nai": {
                     "src_get_func": "get_vm_idx",
                     "src_get_kwargs": {
-                        "idx": "na1_c_n"
+                        "idx": "Na_n"
                     },
                     "unit": "mM"
                 },
                 "metab_ko": {
                     "src_get_func": "get_vm_idx",
                     "src_get_kwargs": {
-                        "idx": "k_e_e"
+                        "idx": "K_out"
                     },
                     "unit": "mM"
                 },

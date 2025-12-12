@@ -129,6 +129,15 @@ def stats(**kwargs):
     """Get some stats from a simulation"""
     MsrSimulation.stats()
 
+@command
+def index(**kwargs):
+    """Show metabolism index information
+    
+    Without arguments shows all indexes. With idx_name shows partial matches from both PIdx and UIdx.
+    Output format: PIdx.name (current_index): description #old_index"""
+    from multiscale_run.metabolism.indexes import index_info
+    index_info(**kwargs)
+
 
 @command
 def check(**kwargs):
@@ -326,6 +335,14 @@ def argument_parser():
     parser_stats = subparsers.add_parser("stats", help=stats.__argparse_help__)
     parser_stats.set_defaults(func=stats)
     parser_stats.add_argument("directory", nargs="?")
+
+    parser_index = subparsers.add_parser(
+        "index", 
+        help=index.__argparse_help__,
+        description="Show metabolism index information. Without arguments shows all indexes. With idx_name shows partial matches from both PIdx and UIdx. Output format: PIdx.name (current_index): description #old_index"
+    )
+    parser_index.set_defaults(func=index)
+    parser_index.add_argument("idx_name", nargs="?")
 
     parser_postproc = subparsers.add_parser(
         "post-processing", help=post_processing.__argparse_help__
