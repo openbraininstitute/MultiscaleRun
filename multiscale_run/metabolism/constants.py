@@ -548,7 +548,7 @@ class ETC:
 
 @dataclass
 class Gaba:
-    # psiGAD_inh_n(GLU_n), GLU_n + MET_h_c_n ⇒ GABA_inh_n + MET_co2_c_n
+    # psiGAD_inh_n(GLU_n), GLU_n + MET_h_c_n ⇒ GABA_inh_n + MET_cO2_n
 
     glutamatergic_gaba_scaling: float = 0.1  # 0.1 for GLU-neurons
 

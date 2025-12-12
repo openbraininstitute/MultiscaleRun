@@ -127,9 +127,9 @@ Concrete example
                 "src_set_kwargs": {"var": "atpi"},
                 "dest_simulator": "metabolism",
                 "dest_get_func": "get_vm_idx",
-                "dest_get_kwargs": {"idx": "atp_c_n"},
+                "dest_get_kwargs": {"idx": "ATP_n"},
                 "dest_set_func": "set_vm_idxs",
-                "dest_set_kwargs": {"idxs": "atp_c_n"},
+                "dest_set_kwargs": {"idxs": "ATP_n"},
                 "action": "merge"
             }
         ]
@@ -162,7 +162,7 @@ In the previous block MultiscaleRun is instructed to `merge` (the action) the va
 
 All these values are based on the time step of Metabolism. :math:`n_{\text{metabolism}}` is the n\ :sup:`th` time step for Metabolism. The reconciled value at :math:`n_{\text{metabolism}}+1` is equal to the value from Metabolism plus the value from Neurodamus minus the previous reconciled value.
 
-The remaining keys indicate functions and arguments for setters and getters for both source and destination. For example, to set the values to the destination we use the function `set_vm_idxs` and its arguments are: `"idxs": "atp_c_n"`. The index name `"atp_c_n"` is automatically resolved to its numeric value (see the note above about metabolism indexes).
+The remaining keys indicate functions and arguments for setters and getters for both source and destination. For example, to set the values to the destination we use the function `set_vm_idxs` and its arguments are: `"idxs": "ATP_n"`. The index name `"ATP_n"` is automatically resolved to its numeric value (see the note above about metabolism indexes).
 
 .. _data_transformation_label:
 
@@ -232,7 +232,7 @@ Metabolism
 Parameters of the Metabolism simulator. The metabolism model is embedded in Python and uses constants defined in ``multiscale_run/metabolism/constants.py``.
 
 - **ndts**: Integer. Time step of the simulator. Measured in number of Neurodamus time steps.
-- **u0**: Dict. Initial values for the metabolism variables. Keys can be index names (e.g., ``"atp_c_n"``) from ``UIdx`` in ``multiscale_run/metabolism/indexes.py``. Empty dict uses default values from ``multiscale_run/metabolism/initial_conditions.py``.
+- **u0**: Dict. Initial values for the metabolism variables. Keys can be index names (e.g., ``"ATP_n"``) from ``UIdx`` in ``multiscale_run/metabolism/indexes.py``. Empty dict uses default values from ``multiscale_run/metabolism/initial_conditions.py``.
 - **constants**: Dict. Constants for the metabolism model organized by category. Each key is a category name (e.g., ``"ATDMP"``, ``"Glycogen"``, ``"GeneralConstants"``) corresponding to dataclasses in ``multiscale_run/metabolism/constants.py``. Values are dicts with parameter names and their values. Example:
 
   .. code-block:: json
@@ -275,7 +275,7 @@ Parameters of the Metabolism simulator. The metabolism model is embedded in Pyth
                   }
               },
               "vm": {
-                  "atp_c_n": {
+                  "ATP_n": {
                       "kwargs": {"lb": 0.25, "hb": 2.5},
                       "response": "abort_simulation"
                   }
@@ -283,7 +283,7 @@ Parameters of the Metabolism simulator. The metabolism model is embedded in Pyth
           }
       }
 
-  - **parameters** / **vm**: Dict. Checks for parameters or variables respectively. Keys are index names (strings like ``"atp_c_n"`` or ``"notBigg_FinDyn_W2017"``).
+  - **parameters** / **vm**: Dict. Checks for parameters or variables respectively. Keys are index names (strings like ``"ATP_n"`` or ``"notBigg_FinDyn_W2017"``).
   - **kwargs**: Dict. Checking routine arguments (optional entries):
 
     - **lb**: Float. Lower bound (exclusive): \(lb < v\)
@@ -344,7 +344,7 @@ Parameters to report the simulation outcome. Currently, MultiscaleRun reports in
                 },
                 "metab_atpi": {
                     "src_get_func": "get_vm_idx",
-                    "src_get_kwargs": {"idx": "atp_c_n"},
+                    "src_get_kwargs": {"idx": "ATP_n"},
                     "unit": "mM",
                     "file_name": "metab_atpi.h5",
                     "when": "after_sync"
