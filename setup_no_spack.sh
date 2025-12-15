@@ -30,7 +30,7 @@ if [ -d "venv" ]; then
   echo "Found existing venv directory. Just load env"
   source venv/bin/activate
 else
-  python -m venv venv
+  python3.11 -m venv venv
   source venv/bin/activate
   pip install --upgrade pip
   pip install NEURON-nightly cython
