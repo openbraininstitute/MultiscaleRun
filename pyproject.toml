@@ -62,6 +62,7 @@ dependencies = [
     "jupyterlab",
     "neuron-nightly",
     "neurodamus",
+    "pytest"
     # "h5py[mpi]",
     # "trimesh>=3",
     # "NEURON-nightly",
