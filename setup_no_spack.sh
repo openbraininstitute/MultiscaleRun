@@ -38,7 +38,7 @@ else
   pip install --no-binary=mpi4py mpi4py
   python -m pip install --upgrade pip setuptools
   pip install --no-cache-dir --no-binary=h5py h5py --no-build-isolation
-  pip install neurodamus morphio
+  pip install neurodamus morphio ruff pytest
 fi
 
 if [ ! -d "libsonatareport" ]; then
