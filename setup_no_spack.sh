@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-set -e
 
 test_folder="tiny_CI_test"
 OS=$(uname)
