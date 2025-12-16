@@ -1,42 +1,65 @@
-# !/usr/bin/env bash
+#!/usr/bin/env bash
+set -e
 
 test_folder="tiny_CI_test"
+OS=$(uname)
 
-export PATH="/opt/homebrew/bin:$PATH"
-export LDFLAGS="-L/opt/homebrew/opt/openmpi/lib"
-export CPPFLAGS="-I/opt/homebrew/opt/openmpi/include"
-# alias python=python3.11
-
+# ------------------------------------------------------------------------------
+# Common environment
+# ------------------------------------------------------------------------------
 export LIBSONATA_ZERO_BASED_GIDS=1
 export OMP_NUM_THREADS=1
-export SONATAREPORT_DIR=$(pwd)/libsonatareport/build/install
-export NEURODAMUS_NEOCORTEX_ROOT=$(pwd)/neurodamus-models/build/install
-export HOC_LIBRARY_PATH=$NEURODAMUS_NEOCORTEX_ROOT/share/neurodamus_neocortex/hoc
-export CORENEURONLIB=$NEURODAMUS_NEOCORTEX_ROOT/lib/libcorenrnmech.dylib
-export NRNMECH_LIB_PATH=$NEURODAMUS_NEOCORTEX_ROOT/lib/libnrnmech.dylib
 
-export HDF5_INCLUDEDIR=$(brew --prefix hdf5-mpi)/include
-export HDF5_LIBDIR=$(brew --prefix hdf5-mpi)/lib
+export SONATAREPORT_DIR="$(pwd)/libsonatareport/build/install"
+export NEURODAMUS_NEOCORTEX_ROOT="$(pwd)/neurodamus-models/build/install"
+export HOC_LIBRARY_PATH="$NEURODAMUS_NEOCORTEX_ROOT/share/neurodamus_neocortex/hoc"
+
 export CC=$(which mpicc)
 export CXX=$(which mpicxx)
-export HDF5_MPI="ON" 
-export HDF5_INCLUDEDIR=$HDF5_INCLUDEDIR 
-export HDF5_LIBDIR=$HDF5_LIBDIR
-export MPICC=$(brew --prefix openmpi)/bin/mpicc
+export HDF5_MPI=ON
+export MPICC=$(which mpicc)
 
-deactivate
+# ------------------------------------------------------------------------------
+# OS-specific configuration
+# ------------------------------------------------------------------------------
+
+if [[ "$OS" == "Darwin" ]]; then
+
+  export PATH="/opt/homebrew/bin:$PATH"
+  export LDFLAGS="-L/opt/homebrew/opt/openmpi/lib"
+  export CPPFLAGS="-I/opt/homebrew/opt/openmpi/include"
+
+  export HDF5_INCLUDEDIR=$(brew --prefix hdf5-mpi)/include
+  export HDF5_LIBDIR=$(brew --prefix hdf5-mpi)/lib
+
+  export CORENEURONLIB="$NEURODAMUS_NEOCORTEX_ROOT/lib/libcorenrnmech.dylib"
+  export NRNMECH_LIB_PATH="$NEURODAMUS_NEOCORTEX_ROOT/lib/libnrnmech.dylib"
+
+  PYTHON_BIN=python3.11
+else
+  export HDF5_INCLUDEDIR=/usr/include/hdf5/mpich
+  export HDF5_LIBDIR=/usr/lib/x86_64-linux-gnu/hdf5/mpich
+
+  export CORENEURONLIB="$NEURODAMUS_NEOCORTEX_ROOT/lib/libcorenrnmech.so"
+  export NRNMECH_LIB_PATH="$NEURODAMUS_NEOCORTEX_ROOT/lib/libnrnmech.so"
+
+  PYTHON_BIN=python3
+fi
+
+if [[ -n "$VIRTUAL_ENV" ]]; then
+    deactivate
+fi
 
 if [ -d "venv" ]; then
   echo "Found existing venv directory. Just load env"
   source venv/bin/activate
 else
-  python3.11 -m venv venv
+  $PYTHON_BIN -m venv venv
   source venv/bin/activate
-  pip install --upgrade pip
+  pip install --upgrade pip setuptools
   pip install NEURON-nightly cython
   pip cache purge
   pip install --no-binary=mpi4py mpi4py
-  python -m pip install --upgrade pip setuptools
   pip install --no-cache-dir --no-binary=h5py h5py --no-build-isolation
   pip install neurodamus morphio ruff pytest
 fi

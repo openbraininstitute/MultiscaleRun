@@ -33,12 +33,19 @@ The environment is still set as it is needed.
 
 You can always modify them and recall the setup script. It will not override your changes. 
 
-**Without Spack** (uses Homebrew on macOS):
+**Without Spack** (uses Homebrew on macOS or Ubuntu):
 
 In this case we leverage brew. First we need to install a few things:
 
 ```bash
 brew install cmake openmpi hdf5-mpi python@3.11 ninja
+```
+
+For ubuntu:
+
+```bash
+sudo apt-get update
+sudo apt-get install -y mpich libmpich-dev libhdf5-mpich-dev hdf5-tools flex libfl-dev bison ninja-build libreadline-dev
 ```
 
 Finally, you need to run this at least once before running simulations:
