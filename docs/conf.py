@@ -7,9 +7,18 @@ import importlib.metadata
 
 # -- Project information -----------------------------------------------------
 
-project = "BBP MultiscaleRun"
-author = "BBP HPC"
+project = "MultiscaleRun"
+author = "Open Brain Institute / BBP HPC"
 
+# Acknowledgment for funding and support
+acknowledgment = """
+The development of this software was supported by funding to the Blue Brain Project,
+a research center of the École polytechnique fédérale de Lausanne (EPFL),
+from the Swiss government's ETH Board of the Swiss Federal Institutes of Technology.
+
+Copyright (c) 2005-2023 Blue Brain Project/EPFL
+Copyright (c) 2025 Open Brain Institute
+"""
 
 # The full version, including alpha/beta/rc tags
 version = importlib.metadata.version("multiscale_run")
@@ -33,7 +42,7 @@ templates_path = ["_templates"]
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
-exclude_patterns = ["**/metadata.md"]
+exclude_patterns = ["**/metadata.md", "build/**"]
 
 
 # The name of the Pygments (syntax highlighting) style to use.

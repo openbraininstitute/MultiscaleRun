@@ -1,7 +1,7 @@
 Simulation Configuration
 ========================
 
-This document describes the various configurations available in `simulation_config.json` in the section `multiscale_run`. The general documentation about SONATA Simulation Configuration file `here <https://sonata-extension.readthedocs.io/en/latest/sonata_simulation.html>`_.
+This document describes the various configurations available in `simulation_config.json` in the section `multiscale_run`. The general documentation about SONATA Simulation Configuration file `here <https://sonata-extension.readthedocs.io/en/latest/>`_.
 
 Paths
 =====
@@ -25,16 +25,16 @@ Base section
 
 This is the base section that configures the parameters to run MultiscaleRun simulations.
 
-- **with_steps**: Boolean. Indicates whether the STEPS simulator is enabled. It computes the extracellular reactions/diffusions of the molecules.
-- **with_bloodflow**: Boolean. Indicates whether the AstroVascPy simulator is enabled. It computes the blood flows and volumes inside the vasculature.
-- **with_metabolism**: Boolean. Indicates whether the Metabolism simulator is enabled. It computes the metabolism of the neurons (ATP/ADP etc. generation/consumption).
+- **with_steps**: Boolean. Indicates whether the STEPS simulator is enabled. It computes the extracellular reactions/diffusions of the molecules. Currently only `false` is accepted (triple-run not supported).
+- **with_bloodflow**: Boolean. Indicates whether the AstroVascPy simulator is enabled. It computes the blood flows and volumes inside the vasculature. Currently only `false` is accepted (quad-run not supported).
+- **with_metabolism**: Boolean. Indicates whether the Metabolism simulator is enabled. It computes the metabolism of the neurons (ATP/ADP etc. generation/consumption). This is the only additional simulator currently supported alongside Neurodamus (dual-run).
 - **cache_save**: Boolean. If true, some simulation matrices are cached on the filesystem. It greatly speeds up initialization in future simulations.
 - **cache_load**: Boolean. If true, some simulation matrices are loaded from the cache, if present. Used in conjunction with `cache_save`.
 - **logging_level**: Integer. Defines the verbosity level of Neurodamus logs.
 - **mesh_path**: String. Path to the mesh file used in simulations, e.g., "mesh/autogen_mesh.msh".
 - **cache_path**: String. Filesystem location where the cached files are stored, e.g., "cache".
 - **mesh_scale**: Float. Scale factor applied to the mesh dimensions, typically in the order of 1e-6.
-- **config_format**: Integer. Specifies the configuration format version, e.g., 2.
+- **config_format**: Integer. Specifies the configuration format version. Current version is 3.
 - **msr_version**: String. Indicates the version of the MultiscaleRun that created this file, e.g., "1.0".
 - **ndts**: Optional, Integer. Main MultiscaleRun iteration time step. Measured in Neurodamus time steps. If no entry is provided the one is calculated for you based on the time steps of the various simulators. It is suggested to let the program decide.
 
@@ -66,12 +66,17 @@ The order of the list is important: later connections in these lists may overrid
 
 The possible keys in **connections** are:
 
-- **after_metabolism_advance, after_steps_advance, before_bloodflow_advance**
+- **after_metabolism_advance**: Connections executed after metabolism advances (dual-run)
+- **after_steps_advance**: Connections executed after STEPS advances (not currently supported)
+- **before_bloodflow_advance**: Connections executed before bloodflow advances (not currently supported)
 
-Keys different from the list provided are disregarded and a warning is emitted.
+Keys different from the list provided are disregarded and a warning is emitted. Currently, only `after_metabolism_advance` is functional for dual-run simulations.
 
 Configuration specification
 ---------------------------
+
+.. note::
+   When working with metabolism connections, you do not need to set indexes explicitly. However, you may need to reference them by name. The available indexes are defined in ``multiscale_run/metabolism/indexes.py`` as two singleton objects: ``PIdx`` (parameter indexes) and ``UIdx`` (variable indexes). For example, ``UIdx.atp_i_n`` corresponds to index 13 for neuronal intracellular ATP.
 
 Each connection must specify:
 
@@ -117,9 +122,9 @@ Concrete example
                     "src_set_kwargs": {"var": "atpi"},
                     "dest_simulator": "metabolism",
                     "dest_get_func": "get_vm_idx",
-                    "dest_get_kwargs": {"idx": 22},
+                    "dest_get_kwargs": {"idx": "atp_c_n"},
                     "dest_set_func": "set_vm_idxs",
-                    "dest_set_kwargs": {"idxs": [22]},
+                    "dest_set_kwargs": {"idxs": "atp_c_n"},
                     "action": "merge"
                 }
             ]
@@ -134,7 +139,7 @@ In the previous block MultiscaleRun is instructed to `merge` (the action) the va
 
 All these values are based on the time step of Metabolism. :math:`n_{\text{metabolism}}` is the n\ :sup:`th` time step for Metabolism. The reconciled value at :math:`n_{\text{metabolism}}+1` is equal to the value from Metabolism plus the value from Neurodamus minus the previous reconciled value.
 
-The remaining keys indicate functions and arguments for setters and getters for both source and destination. For example, to set the values to the destination we use the function `set_vm_idxs` and its arguments are: `"idxs": [22]`. It may be possible, like in this case, to set the value for multiple indexes simultaneously if the appropriate function accepts lists. This functionality may be expanded in the future to other setters and simulators if needed.
+The remaining keys indicate functions and arguments for setters and getters for both source and destination. For example, to set the values to the destination we use the function `set_vm_idxs` and its arguments are: `"idxs": "atp_c_n"`. The index name `"atp_c_n"` is automatically resolved to its numeric value (see the note above about metabolism indexes).
 
 .. _data_transformation_label:
 
@@ -153,19 +158,19 @@ The Python expression is executed in a restricted environment where only few sym
 In addition, a few matrices are available to perform the various averages that are likely required:
 
 - **nXsecMat**: neuron x section matrix. ``nXsecMat.dot(vals)`` does the volume-weighted average of the section-based values in ``vals``. Adimensional. Each element is: ``V_j / V_i`` where ``V_i`` is the total volume of the neuron and ``V_j`` is the volume of the section. Neurons and sections are local to the MPI rank.
-- **nsecXnsegMat**: neuron section x neuron segment matrix. ``nsecXnsegMat.dot(vals)`` does the volume-weighted average of the section-based values in ``vals``. Adimentional. Each element is: ``V_j / V_i`` where ``V_i`` is the total volume of the section and ``V_j`` is the volume of the segment. Sections and segments are local to the rank.
+- **nsecXnsegMat**: neuron section x neuron segment matrix. ``nsecXnsegMat.dot(vals)`` does the volume-weighted average of the section-based values in ``vals``. Adimensional. Each element is: ``V_j / V_i`` where ``V_i`` is the total volume of the section and ``V_j`` is the volume of the segment. Sections and segments are local to the rank.
 - **nXnsegMatBool**: ``nXnsegMatBool = nXsecMat.dot(nsecXnsegMat) > 0``
 - **nsegXtetMat**: neuron segment x tet matrix. Adimensional. Each element is ``V_seg_in_tet_ij / V_seg_i`` where ``V_seg_in_tet`` is the volume of the neuron segment ``i`` in tet ``j`` and ``V_seg_i`` is the volume of the neuron segment ``i``. Tets are global while segments are local to the MPI rank. This means that each rank has a big row block of the total matrix.
-- **tetXbfVolsMat**: tetrahedra x bloodflow segments matrix. Adimentional. Each element is ``V_seg_in_tet_ij / V_seg_i`` where ``V_seg_in_tet`` is the volume of the bloodflow segment ``i`` in tet ``j`` and ``V_seg_i`` is the volume of the bloodflow segment ``i``. Tets and bloodflow segments are global and the same matrix is shared among all the ranks.
-- **tetXbfFlowsMat**: tetrahedra x bloodflow segments matrix. Bool matrix that computes what are the flows entering or exiting a tet. Segments completely encompassed inside a tet are not counted except if they are inputs/outputs of the the bloodflow simulator. Adimentional. Tets and bloodflow segments are global and the same matrix is shared among all the ranks.
-- **tetXtetMat**: tetrahedra x tetrahedra matrix that riscale tet values to the a reference, average tet. Adimentional and diagonal. Each element of the diagonal is: ``V_avg / V_i`` where ``V_avg`` is the volume of the average tet and ``V_i`` is the volume of the tet ``i``. Tets are global and the same matrix is shared among all the ranks.
+- **tetXbfVolsMat**: tetrahedra x bloodflow segments matrix. Adimensional. Each element is ``V_seg_in_tet_ij / V_seg_i`` where ``V_seg_in_tet`` is the volume of the bloodflow segment ``i`` in tet ``j`` and ``V_seg_i`` is the volume of the bloodflow segment ``i``. Tets and bloodflow segments are global and the same matrix is shared among all the ranks.
+- **tetXbfFlowsMat**: tetrahedra x bloodflow segments matrix. Bool matrix that computes what are the flows entering or exiting a tet. Segments completely encompassed inside a tet are not counted except if they are inputs/outputs of the bloodflow simulator. Adimensional. Tets and bloodflow segments are global and the same matrix is shared among all the ranks.
+- **tetXtetMat**: tetrahedra x tetrahedra matrix that rescales tet values to a reference, average tet. Adimensional and diagonal. Each element of the diagonal is: ``V_avg / V_i`` where ``V_avg`` is the volume of the average tet and ``V_i`` is the volume of the tet ``i``. Tets are global and the same matrix is shared among all the ranks.
 
 Examples of valid expressions:
 
-- ``vals * (1.0 / (1.0e-3 * config.multiscale_run.steps.conc_factor))``
-- ``abs(vals) * 5e-10``
-- ``np.floor(10 * rg.random((3, 4)))``
-- ``tetXtetMat.dot(tetXbfVolsMat.dot(vals)) * 5e-10``
+- ``vals * 1e-8`` - Simple scaling
+- ``vals / 2 * (-0.92 + np.sqrt(0.92 * 0.92 + 4 * 0.92 * (1.4449961078157665 / vals - 1)))`` - Complex calculation for ADP from ATP
+- ``abs(vals) * 5e-10`` - Absolute value with scaling
+- ``nXsecMat.dot(vals)`` - Volume-weighted averaging across neuron sections
 
 Full example of JSON connections with transformation:
 
@@ -175,26 +180,23 @@ Full example of JSON connections with transformation:
     "connections": {
       "after_metabolism_advance": [
         {
-          "src_simulator": "bloodflow",
-          "src_get_func": "get_vols",
-          "src_get_kwargs": {},
-          "transform_expression": "tetXtetMat.dot(tetXbfVolsMat.dot(vals)) * 5e-10",
+          "src_simulator": "neurodamus",
+          "src_get_func": "get_var",
+          "src_get_kwargs": {"var": "ina", "weight": "area"},
           "dest_simulator": "metabolism",
           "dest_set_func": "set_parameters_idxs",
-          "dest_set_kwargs": {"idxs": [5]},
+          "dest_set_kwargs": {"idxs": "ina_density"},
           "action": "set"
-        }
-      ],
-      "after_steps_advance": [
+        },
         {
           "src_simulator": "neurodamus",
           "src_get_func": "get_var",
-          "src_get_kwargs": {"var": "ik","weight": "area"},
-          "transform_expression": "vals * 1e-8",
-          "dest_simulator": "steps",
-          "dest_set_func": "add_curr_to_conc",
-          "dest_set_kwargs": {"species_name": "KK"},
-          "action": "sum"
+          "src_get_kwargs": {"var": "atpi", "weight": "volume"},
+          "transform_expression": "vals / 2 * (-0.92 + np.sqrt(0.92 * 0.92 + 4 * 0.92 * (1.4449961078157665 / vals - 1)))",
+          "dest_simulator": "metabolism",
+          "dest_set_func": "set_vm_idxs",
+          "dest_set_kwargs": {"idxs": "adp_c_n"},
+          "action": "set"
         }
       ]
     }
@@ -204,48 +206,78 @@ Full example of JSON connections with transformation:
 Metabolism
 ==========
 
-Parameters of the Metabolism simulator. The Julia model has 2 inputs: `parameters` and `vm`. The initial values of `vm` is `u0`.
+Parameters of the Metabolism simulator. The metabolism model is embedded in Python and uses constants defined in ``multiscale_run/metabolism/constants.py``.
 
 - **ndts**: Integer. Time step of the simulator. Measured in number of Neurodamus time steps.
-- **u0_path**: String. Path to the CSV file providing the initial values of the Metabolism model.
-- **julia_code_path**: String. Path to the main Julia model file.
-- **model**: Dict. Provides additional variables to the Metabolism model.
-    - **model_path**: String. Base path to the additional includes.
-    - **pardir_path**: String. Base path to the additional parameters required by the Metabolism model.
-    - **includes**: List. Additional includes required for the main Julia model to function.
-    - **constants**: Dict. Additional constants required by the julia model.
-- **constants**: Dict. Constant necessary for the Metabolism manager of MultiscaleRun.
-- **parameters**: List. List of parameters of the Metabolism model. They are the inputs (except `vm`) in order of the main Julia model file. During initialization (before any advance for any simulator), the connections to `metabolism` may replace these values. In that case, and only in this case, the `merge` action is downgraded to a `set` action.
-- **solver_kwargs**: Dict. Parameters for the solver of the Metabolism model. The solver is currently: `de.Rosenbrock23`.
-- **checks**: Dict. This a list of checks that are performed on the Metabolism inputs (parameters and vm) for every Metabolism time steps to verify integrity of the inputs. Items are optional. The parameters and vms that are not mentioned in this list are still checked to be normal numbers (no inf, nan is allowed). For example:
+- **u0**: Dict. Initial values for the metabolism variables. Keys can be index names (e.g., ``"atp_c_n"``) from ``UIdx`` in ``multiscale_run/metabolism/indexes.py``. Empty dict uses default values from ``multiscale_run/metabolism/initial_conditions.py``.
+- **constants**: Dict. Constants for the metabolism model organized by category. Each key is a category name (e.g., ``"ATDMP"``, ``"Glycogen"``, ``"GeneralConstants"``) corresponding to dataclasses in ``multiscale_run/metabolism/constants.py``. Values are dicts with parameter names and their values. Example:
 
-.. code-block:: json
+  .. code-block:: json
 
-    {
-        "checks": {
-                "parameters": {
-                    "3": {
-                        "name": "bloodflow_Fin",
-                        "kwargs": {"leb": 0.0},
-                        "response": "exclude_neuron"
-                    }
-                }
-            }
-    }
+      {
+          "ATDMP": {
+              "ATDPtot_n": 1.4449961078157665
+          },
+          "Glycogen": {
+              "au": [128.0, 100.0, 100.0, 90.0, 80.0, 75.0]
+          },
+          "GeneralConstants": {
+              "mito_volume_fraction": [0.0459, 0.0522, 0.064, 0.0774, 0.0575, 0.0403],
+              "xNEmod": 0.025,
+              "KdNEmod": 0.0003
+          }
+      }
 
-- **3**: Integer. Index of the checked parameter.
-- **name**: String. Name of the parameter. Effectively unused in the simulation. Useful for the operator.
-- **kwargs**: Dict. Arguments of the checking routine. Its entries are optional. The following entries are supported:
-    - **lb**: Float. Lower bound. The value `v` must be:  \(lb < v \)
-    - **leb**: Float. Lower or equal bound. The value `v` must be:  \(lb \leq  v \)
-    - **hb**: Float. Higher bound. The value `v` must be:  \(v < hb \)
-    - **heb**: Float. Higher or equal bound. The value `v` must be:  \(v \leq  heb \)
-- **response**: String. Response applied if one of the values does not pass the check. Currently, the following responses are implemented:
-    - **exclude_neuron**: The neuron is removed from the simulation. The rest may continue. If no neurons remain (among all ranks) the simulation is aborted at the end of a MultiscaleRun iteration.
-    - **abort_simulation**: The simulation is aborted.
+- **parameters**: Dict. Initial parameter values for the metabolism model. Keys can be index names (e.g., ``"ina_density"``) from ``PIdx`` in ``multiscale_run/metabolism/indexes.py``. During initialization (before any advance), connections to metabolism may replace these values. In that case, the `merge` action is downgraded to a `set` action. Example:
 
-STEPS
-=====
+  .. code-block:: json
+
+      {
+          "notBigg_FinDyn_W2017": 0.0001,
+          "notBigg_Fout_W2017": 0.0001,
+          "notBigg_vV_b_b": 0.023
+      }
+
+- **solver_kwargs**: Dict. Parameters for the ODE solver. The solver is currently ``Radau`` from scipy. Common parameters include ``method``, ``rtol``, ``atol``.
+- **checks**: Dict. Checks performed on metabolism inputs (parameters and vm) at every metabolism time step to verify integrity. Items are optional. Parameters and variables not mentioned are still checked to be normal numbers (no inf, nan allowed). Structure:
+
+  .. code-block:: json
+
+      {
+          "checks": {
+              "parameters": {
+                  "notBigg_FinDyn_W2017": {
+                      "kwargs": {"leb": 0.0},
+                      "response": "exclude_neuron"
+                  }
+              },
+              "vm": {
+                  "atp_c_n": {
+                      "kwargs": {"lb": 0.25, "hb": 2.5},
+                      "response": "abort_simulation"
+                  }
+              }
+          }
+      }
+
+  - **parameters** / **vm**: Dict. Checks for parameters or variables respectively. Keys are index names (strings like ``"atp_c_n"`` or ``"notBigg_FinDyn_W2017"``).
+  - **kwargs**: Dict. Checking routine arguments (optional entries):
+
+    - **lb**: Float. Lower bound (exclusive): \(lb < v\)
+    - **leb**: Float. Lower bound (inclusive): \(lb \leq v\)
+    - **hb**: Float. Upper bound (exclusive): \(v < hb\)
+    - **heb**: Float. Upper bound (inclusive): \(v \leq heb\)
+
+  - **response**: String. Action if check fails:
+
+    - **exclude_neuron**: Remove neuron from simulation. Simulation continues with remaining neurons. If no neurons remain (across all ranks), simulation aborts at end of MultiscaleRun iteration.
+    - **abort_simulation**: Immediately abort the simulation.
+
+STEPS (Disabled)
+================
+
+.. note::
+   STEPS simulator is not currently supported (triple-run disabled). This section is kept for reference only.
 
 Parameters for the STEPS simulator.
 
@@ -259,8 +291,11 @@ Parameters for the STEPS simulator.
         - **diffcst**: Float. `Diffusion <https://steps.sourceforge.net/manual/API_2/API_model.html?highlight=diffusion#steps.API_2.model.Diffusion>`_ constant in SI units.
         - **ncharges**: Integer. Charge number of the ion.
 
-Blood Flow
-==========
+Blood Flow (Disabled)
+=====================
+
+.. note::
+   Blood flow simulator is not currently supported (quad-run disabled). This section is kept for reference only.
 
 Parameters for the blood flow simulator (AstroVascPy).
 
@@ -279,19 +314,32 @@ Parameters to report the simulation outcome. Currently, MultiscaleRun reports in
             "metabolism": {
                 "metab_ina": {
                     "src_get_func": "get_parameters_idx",
-                    "src_get_kwargs": {"idx": 0},
+                    "src_get_kwargs": {"idx": "ina_density"},
                     "unit": "mA/cm^2",
                     "file_name": "metab_ina.h5",
                     "when": "after_sync"
+                },
+                "metab_atpi": {
+                    "src_get_func": "get_vm_idx",
+                    "src_get_kwargs": {"idx": "atp_c_n"},
+                    "unit": "mM",
+                    "file_name": "metab_atpi.h5",
+                    "when": "after_sync"
                 }
             }
+        }
     }
 
-- **src_get_func**: String. Getter function for the simulator. Options: [`metabolism`, `bloodflow`].
-- **src_get_kwargs**: Dict. Inputs for the getter function.
+- **src_get_func**: String. Getter function for the simulator. For metabolism, use ``get_parameters_idx`` for parameters or ``get_vm_idx`` for variables. Other options include ``alive_gids`` to report which neurons are still active.
+- **src_get_kwargs**: Dict. Inputs for the getter function. For metabolism, use ``{"idx": "index_name"}`` where ``index_name`` is a string from ``PIdx`` (for parameters) or ``UIdx`` (for variables) defined in ``multiscale_run/metabolism/indexes.py``.
 - **unit**: String. Units of the values in the report.
-- **file_name**: String. Name of the file.
-- **when**: String. Since multiple simulators are active at the same time and `sync` calls may modify the values of the simulators the report may take the values just before or just after the `sync` operation. This value selects that. Possible values: `after_sync`, `before_sync`. Multiple reports (with different file names) for reporting just before and after `sync` are possible.
+- **file_name**: String. Name of the HDF5 output file.
+- **when**: String. Timing of the report relative to synchronization. Possible values:
 
-`bloodflow` reports are vasculature-segment-based. The section has the same structure as for `metabolism` apart from the content of `src_get_kwargs`. If you leave it empty the report will give the results for all the segments. Otherwise, you can specify a subset of them adding an `idxs` array of their indexes.
+  - **after_sync**: Report values after synchronization between simulators
+  - **before_sync**: Report values before synchronization
+
+  Multiple reports with different file names can capture both before and after sync states.
+
+`bloodflow` reports are vasculature-segment-based (not currently supported). The section has the same structure as for `metabolism` apart from the content of `src_get_kwargs`. If you leave it empty the report will give the results for all the segments. Otherwise, you can specify a subset of them adding an `idxs` array of their indexes.
 
