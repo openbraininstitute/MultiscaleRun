@@ -38,7 +38,13 @@ You can always modify them and recall the setup script. It will not override you
 In this case we leverage brew. First we need to install a few things:
 
 ```bash
-brew install cmake openmpi hdf5-mpi python@3.11 ninja
+brew install cmake openmpi hdf5-mpi python@3.12 ninja
+```
+
+We also need to link `python3`:
+
+```bash
+ln -sf /opt/homebrew/bin/python3.12 /opt/homebrew/bin/python3
 ```
 
 For ubuntu:

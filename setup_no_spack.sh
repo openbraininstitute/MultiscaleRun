@@ -23,7 +23,6 @@ export MPICC=$(which mpicc)
 # ------------------------------------------------------------------------------
 
 if [[ "$OS" == "Darwin" ]]; then
-
   export PATH="/opt/homebrew/bin:$PATH"
   export LDFLAGS="-L/opt/homebrew/opt/openmpi/lib"
   export CPPFLAGS="-I/opt/homebrew/opt/openmpi/include"
@@ -33,16 +32,12 @@ if [[ "$OS" == "Darwin" ]]; then
 
   export CORENEURONLIB="$NEURODAMUS_NEOCORTEX_ROOT/lib/libcorenrnmech.dylib"
   export NRNMECH_LIB_PATH="$NEURODAMUS_NEOCORTEX_ROOT/lib/libnrnmech.dylib"
-
-  PYTHON_BIN=python3.11
 else
   export HDF5_INCLUDEDIR=/usr/include/hdf5/mpich
   export HDF5_LIBDIR=/usr/lib/x86_64-linux-gnu/hdf5/mpich
 
   export CORENEURONLIB="$NEURODAMUS_NEOCORTEX_ROOT/lib/libcorenrnmech.so"
   export NRNMECH_LIB_PATH="$NEURODAMUS_NEOCORTEX_ROOT/lib/libnrnmech.so"
-
-  PYTHON_BIN=python3
 fi
 
 if [[ -n "$VIRTUAL_ENV" ]]; then
@@ -53,7 +48,7 @@ if [ -d "venv" ]; then
   echo "Found existing venv directory. Just load env"
   source venv/bin/activate
 else
-  $PYTHON_BIN -m venv venv
+  python3 -m venv venv
   source venv/bin/activate
   pip install --upgrade pip setuptools
   pip install NEURON-nightly cython
