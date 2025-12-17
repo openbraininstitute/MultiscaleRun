@@ -135,6 +135,23 @@ tox -e docs
 
 Alternatively, check the official documentation at: https://multiscalerun.readthedocs.io/stable/
 
+### Azure
+
+To run on Azure, request a VM from Erik. Once you have the credentials:
+
+1. SSH into the VM.
+2. Install the dependencies by following the [Setup](#setup) section (Linux).
+3. Run the simulation.
+4. Start post-processing on the VM:
+   ```bash
+   jupyter lab --no-browser --port=8888
+   ```
+   In parallel, on your local machine, create an SSH tunnel:
+   ```bash
+   ssh -L 8888:localhost:8888 <user>@<remote-host>
+   ```
+   Then open Jupyter in your local browser at http://localhost:8888
+
 ## Authors
 
 Polina Shichkova, Alessandro Cattabiani, Christos Kotsalos, and Tristan Carel
