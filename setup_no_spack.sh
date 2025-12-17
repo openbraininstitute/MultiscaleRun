@@ -5,7 +5,6 @@ test_folder="tiny_CI_test"
 export PATH="/opt/homebrew/bin:$PATH"
 export LDFLAGS="-L/opt/homebrew/opt/openmpi/lib"
 export CPPFLAGS="-I/opt/homebrew/opt/openmpi/include"
-# alias python=python3.11
 
 export LIBSONATA_ZERO_BASED_GIDS=1
 export OMP_NUM_THREADS=1
@@ -30,7 +29,7 @@ if [ -d "venv" ]; then
   echo "Found existing venv directory. Just load env"
   source venv/bin/activate
 else
-  python -m venv venv
+  python3 -m venv venv
   source venv/bin/activate
   pip install --upgrade pip
   pip install NEURON-nightly cython

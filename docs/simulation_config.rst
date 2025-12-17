@@ -60,15 +60,27 @@ The section **connections** describes how data is exchanged between different si
 
 Users can define connections between simulators using a list of dicts. When multiple connections apply, their order matters: the last connection in the list takes priority.
 
+<<<<<<< HEAD
 Each connection specifies a source simulator `src_simulator` and a destination simulator `dest_simulator`. By default, data is exchanged whenever the internal times of both simulators coincide.
 
 This behavior can be customized with the `ndts` parameter, allowing connections to synchronize simulators with differing internal times. This is particularly useful in hybrid integration schemes, where data may propagate backward in time to update simulators that have not yet reached the corresponding time step.
+=======
+- **after_metabolism_advance**: Connections executed after metabolism advances (dual-run)
+- **after_steps_advance**: Connections executed after STEPS advances (not currently supported)
+- **before_bloodflow_advance**: Connections executed before bloodflow advances (not currently supported)
+
+Keys different from the list provided are disregarded and a warning is emitted. Currently, only `after_metabolism_advance` is functional for dual-run simulations.
+>>>>>>> main
 
 Configuration specification
 ---------------------------
 
 .. note::
+<<<<<<< HEAD
    When working with metabolism connections, you do not need to set indexes explicitly. However, you may need to reference them by name. The available indexes are defined in ``multiscale_run/metabolism/indexes.py`` as two singleton objects: ``PIdx`` (parameter indexes) and ``UIdx`` (variable indexes). For example, ``UIdx.atp_i_n`` corresponds to index 13 for neuronal intracellular ATP. In the future multiscale run will give you a rundown of the accepted indexes.
+=======
+   When working with metabolism connections, you do not need to set indexes explicitly. However, you may need to reference them by name. The available indexes are defined in ``multiscale_run/metabolism/indexes.py`` as two singleton objects: ``PIdx`` (parameter indexes) and ``UIdx`` (variable indexes). For example, ``UIdx.atp_i_n`` corresponds to index 13 for neuronal intracellular ATP.
+>>>>>>> main
 
 Each connection must specify:
 
@@ -105,6 +117,7 @@ Concrete example
 .. code-block:: json
 
     {
+<<<<<<< HEAD
         "connections": [
             {
                 "src_simulator": "neurodamus",
@@ -120,6 +133,25 @@ Concrete example
                 "action": "merge"
             }
         ]
+=======
+        "connections": {
+            "after_metabolism_advance": [
+                {
+                    "src_simulator": "neurodamus",
+                    "src_get_func": "get_var",
+                    "src_get_kwargs": {"var": "atpi", "weight": "volume"},
+                    "src_set_func": "set_var",
+                    "src_set_kwargs": {"var": "atpi"},
+                    "dest_simulator": "metabolism",
+                    "dest_get_func": "get_vm_idx",
+                    "dest_get_kwargs": {"idx": "atp_c_n"},
+                    "dest_set_func": "set_vm_idxs",
+                    "dest_set_kwargs": {"idxs": "atp_c_n"},
+                    "action": "merge"
+                }
+            ]
+        }
+>>>>>>> main
     }
 
 In the previous block MultiscaleRun is instructed to `merge` (the action) the values from Neurodamus and Metabolism simulators (just after Metabolism calls `advance`). It follows the equation:
