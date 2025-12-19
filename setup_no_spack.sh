@@ -46,7 +46,6 @@ elif  [[ "$PLATFORM" == "azure" ]]; then
   export CORENEURONLIB="$NEURODAMUS_NEOCORTEX_ROOT/lib/libcorenrnmech.so"
   export NRNMECH_LIB_PATH="$NEURODAMUS_NEOCORTEX_ROOT/lib/libnrnmech.so"
 else
-  export HOME=/root
   export PATH=/usr/lib64/openmpi/bin:$PATH
   export LD_LIBRARY_PATH=/usr/lib64/openmpi/lib:$LD_LIBRARY_PATH
 
