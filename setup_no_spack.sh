@@ -60,8 +60,6 @@ export CC=$(which mpicc)
 export CXX=$(which mpicxx)
 export MPICC=$(which mpicc)
 
-return 0
-
 if [[ -n "$VIRTUAL_ENV" ]]; then
     deactivate
 fi
@@ -79,6 +77,8 @@ else
   pip install --no-cache-dir --no-binary=h5py h5py --no-build-isolation
   pip install neurodamus morphio ruff pytest
 fi
+
+return 0
 
 if [ ! -d "libsonatareport" ]; then
     git clone https://github.com/openbraininstitute/libsonatareport.git --recursive --depth=1
