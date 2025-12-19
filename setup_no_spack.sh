@@ -1,7 +1,17 @@
 #!/usr/bin/env bash
 
 test_folder="tiny_CI_test"
-OS=$(uname)
+
+if [[ "$(uname -s)" == "Darwin" ]]; then
+  PLATFORM=mac
+elif [[ -f /sys/hypervisor/uuid ]] && grep -qi '^ec2' /sys/hypervisor/uuid; then
+  PLATFORM=aws
+elif [[ -f /sys/class/dmi/id/sys_vendor ]] && grep -qi 'microsoft' /sys/class/dmi/id/sys_vendor; then
+  PLATFORM=azure
+else
+  echo "ERROR: Unable to detect platform (mac / aws / azure)" >&2
+  exit 1
+fi
 
 # ------------------------------------------------------------------------------
 # Common environment
@@ -22,7 +32,7 @@ export MPICC=$(which mpicc)
 # OS-specific configuration
 # ------------------------------------------------------------------------------
 
-if [[ "$OS" == "Darwin" ]]; then
+if [[ "$PLATFORM" == "mac" ]]; then
   export PATH="/opt/homebrew/bin:$PATH"
   export LDFLAGS="-L/opt/homebrew/opt/openmpi/lib"
   export CPPFLAGS="-I/opt/homebrew/opt/openmpi/include"
@@ -32,9 +42,19 @@ if [[ "$OS" == "Darwin" ]]; then
 
   export CORENEURONLIB="$NEURODAMUS_NEOCORTEX_ROOT/lib/libcorenrnmech.dylib"
   export NRNMECH_LIB_PATH="$NEURODAMUS_NEOCORTEX_ROOT/lib/libnrnmech.dylib"
-else
+elif  [[ "$PLATFORM" == "azure" ]]; then
   export HDF5_INCLUDEDIR=/usr/include/hdf5/mpich
   export HDF5_LIBDIR=/usr/lib/x86_64-linux-gnu/hdf5/mpich
+
+  export CORENEURONLIB="$NEURODAMUS_NEOCORTEX_ROOT/lib/libcorenrnmech.so"
+  export NRNMECH_LIB_PATH="$NEURODAMUS_NEOCORTEX_ROOT/lib/libnrnmech.so"
+else
+  export HOME=/root
+  export PATH=/opt/amazon/openmpi5/bin:$PATH
+  export LD_LIBRARY_PATH=/opt/amazon/openmpi5/lib64:$LD_LIBRARY_PATH
+
+  export HDF5_INCLUDEDIR=/usr/include/openmpi-x86_64
+  export HDF5_LIBDIR=/usr/lib64/openmpi/lib
 
   export CORENEURONLIB="$NEURODAMUS_NEOCORTEX_ROOT/lib/libcorenrnmech.so"
   export NRNMECH_LIB_PATH="$NEURODAMUS_NEOCORTEX_ROOT/lib/libnrnmech.so"

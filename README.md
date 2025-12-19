@@ -13,7 +13,7 @@ MultiscaleRun is an orchestrator of simulators. Currently, only Neurodamus (NEUR
 
 You just need to run the setup script at least once before running the simulation.
 
-**With Spack** (requires OBI spack installation):
+#### With Spack (requires OBI spack installation):
 ```bash
 source setup.sh
 ```
@@ -33,7 +33,9 @@ The environment is still set as it is needed.
 
 You can always modify them and recall the setup script. It will not override your changes. 
 
-**Without Spack** (uses Homebrew on macOS or Ubuntu):
+#### Without Spack:
+
+##### Mac:
 
 In this case we leverage brew. First we need to install a few things:
 
@@ -47,14 +49,29 @@ We also need to link `python3`:
 ln -sf /opt/homebrew/bin/python3.12 /opt/homebrew/bin/python3
 ```
 
-For ubuntu:
+#### Ubuntu (azure):
 
 ```bash
 sudo apt-get update
 sudo apt-get install -y mpich libmpich-dev libhdf5-mpich-dev hdf5-tools flex libfl-dev bison ninja-build libreadline-dev
 ```
 
-Finally, you need to run this at least once before running simulations:
+#### Alma Linux 9 (aws):
+
+```bash
+sudo dnf config-manager --set-enabled crb
+sudo dnf install -y epel-release
+sudo dnf -y install bison cpp cmake gcc-c++ flex flex-devel git python3.11-devel python3-devel python3-pip readline-devel ninja-build openmpi openmpi-devel hdf5-openmpi hdf5-openmpi-devel
+```
+
+Set python 3.11 as default (select 2):
+```bash
+sudo alternatives --install /usr/bin/python3 python3 /usr/bin/python3.9 1
+sudo alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 2
+sudo alternatives --config python3
+```
+
+The rest of the installation is common for all the architectures (mac, ubuntu, alma linux). Finally, you need to run this at least once before running simulations:
 
 ```bash
 source setup_no_spack.sh
