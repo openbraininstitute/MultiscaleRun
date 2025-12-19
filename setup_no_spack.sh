@@ -3,14 +3,14 @@
 test_folder="tiny_CI_test"
 
 if [[ "$(uname -s)" == "Darwin" ]]; then
-  PLATFORM=mac
-elif [[ -f /sys/hypervisor/uuid ]] && grep -qi '^ec2' /sys/hypervisor/uuid; then
-  PLATFORM=aws
+    PLATFORM=mac
+elif [[ -f /sys/class/dmi/id/sys_vendor ]] && grep -qi 'amazon' /sys/class/dmi/id/sys_vendor; then
+    PLATFORM=aws
 elif [[ -f /sys/class/dmi/id/sys_vendor ]] && grep -qi 'microsoft' /sys/class/dmi/id/sys_vendor; then
-  PLATFORM=azure
+    PLATFORM=azure
 else
-  echo "ERROR: Unable to detect platform (mac / aws / azure)" >&2
-  exit 1
+    echo "ERROR: Unable to detect platform (mac / aws / azure)" >&2
+    return 1
 fi
 
 # ------------------------------------------------------------------------------

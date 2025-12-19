@@ -61,7 +61,7 @@ sudo apt-get install -y mpich libmpich-dev libhdf5-mpich-dev hdf5-tools flex lib
 ```bash
 sudo dnf config-manager --set-enabled crb
 sudo dnf install -y epel-release
-sudo dnf -y install bison cpp cmake gcc-c++ flex flex-devel git python3.11-devel python3-devel python3-pip readline-devel ninja-build openmpi openmpi-devel hdf5-openmpi hdf5-openmpi-devel
+sudo dnf -y install bison cpp cmake gcc-c++ flex flex-devel git python3.11-devel python3-devel python3-pip readline-devel ninja-build openmpi openmpi-devel hdf5-openmpi hdf5-openmpi-devel vim
 ```
 
 Set python 3.11 as default (select 2):
