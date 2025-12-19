@@ -4,14 +4,19 @@ test_folder="tiny_CI_test"
 
 if [[ "$(uname -s)" == "Darwin" ]]; then
     PLATFORM=mac
-elif [[ -f /sys/class/dmi/id/sys_vendor ]] && grep -qi 'amazon' /sys/class/dmi/id/sys_vendor; then
-    PLATFORM=aws
 elif [[ -f /sys/class/dmi/id/sys_vendor ]] && grep -qi 'microsoft' /sys/class/dmi/id/sys_vendor; then
     PLATFORM=azure
+elif [[ -f /etc/os-release ]] && grep -qi '^name="Amazon Linux"' /etc/os-release; then
+    PLATFORM=aws
 else
-    echo "ERROR: Unable to detect platform (mac / aws / azure)" >&2
+    PLATFORM=unknown
+    echo "WARNING: Unable to detect platform (mac / aws / azure)" >&2
     return 1
 fi
+
+echo "Detected platform: $PLATFORM"
+
+return 1
 
 # ------------------------------------------------------------------------------
 # Common environment
