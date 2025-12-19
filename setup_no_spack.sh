@@ -23,10 +23,7 @@ export SONATAREPORT_DIR="$(pwd)/libsonatareport/build/install"
 export NEURODAMUS_NEOCORTEX_ROOT="$(pwd)/neurodamus-models/build/install"
 export HOC_LIBRARY_PATH="$NEURODAMUS_NEOCORTEX_ROOT/share/neurodamus_neocortex/hoc"
 
-export CC=$(which mpicc)
-export CXX=$(which mpicxx)
 export HDF5_MPI=ON
-export MPICC=$(which mpicc)
 
 # ------------------------------------------------------------------------------
 # OS-specific configuration
@@ -50,8 +47,8 @@ elif  [[ "$PLATFORM" == "azure" ]]; then
   export NRNMECH_LIB_PATH="$NEURODAMUS_NEOCORTEX_ROOT/lib/libnrnmech.so"
 else
   export HOME=/root
-  export PATH=/opt/amazon/openmpi5/bin:$PATH
-  export LD_LIBRARY_PATH=/opt/amazon/openmpi5/lib64:$LD_LIBRARY_PATH
+  export PATH=/usr/lib64/openmpi/bin:$PATH
+  export LD_LIBRARY_PATH=/usr/lib64/openmpi/lib:$LD_LIBRARY_PATH
 
   export HDF5_INCLUDEDIR=/usr/include/openmpi-x86_64
   export HDF5_LIBDIR=/usr/lib64/openmpi/lib
@@ -59,6 +56,12 @@ else
   export CORENEURONLIB="$NEURODAMUS_NEOCORTEX_ROOT/lib/libcorenrnmech.so"
   export NRNMECH_LIB_PATH="$NEURODAMUS_NEOCORTEX_ROOT/lib/libnrnmech.so"
 fi
+
+export CC=$(which mpicc)
+export CXX=$(which mpicxx)
+export MPICC=$(which mpicc)
+
+return 0
 
 if [[ -n "$VIRTUAL_ENV" ]]; then
     deactivate
