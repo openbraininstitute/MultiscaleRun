@@ -56,12 +56,23 @@ sudo apt-get update
 sudo apt-get install -y mpich libmpich-dev libhdf5-mpich-dev hdf5-tools flex libfl-dev bison ninja-build libreadline-dev
 ```
 
-#### Alma Linux 9 (aws):
+#### Amazon Linux 2023 (aws):
 
 ```bash
-sudo dnf config-manager --set-enabled crb
-sudo dnf install -y epel-release
-sudo dnf -y install bison cpp cmake gcc-c++ flex flex-devel git python3.11-devel python3-devel python3-pip readline-devel ninja-build openmpi openmpi-devel hdf5-openmpi hdf5-openmpi-devel vim
+sudo dnf update -y
+sudo dnf -y install bison cpp cmake gcc-c++ flex flex-devel git python3.11-devel python3-devel python3-pip readline-devel ninja-build openmpi openmpi-devel
+```
+
+This distro does not have openmpi. We need to use the efa installer:
+
+```bash
+cd /tmp
+curl -O https://efa-installer.amazonaws.com/aws-efa-installer-latest.tar.gz
+tar xf aws-efa-installer-latest.tar.gz
+cd aws-efa-installer
+sudo ./efa_installer.sh -y --skip-kmod --mpi=openmpi5
+cd -
+rm -rf /tmp/aws*
 ```
 
 Set python 3.11 as default (select 2):
@@ -69,6 +80,25 @@ Set python 3.11 as default (select 2):
 sudo alternatives --install /usr/bin/python3 python3 /usr/bin/python3.9 1
 sudo alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 2
 sudo alternatives --config python3
+```
+
+This distro does not have hdf5. We install it:
+
+```bash
+export PATH=/opt/amazon/openmpi5/bin:$PATH
+export LD_LIBRARY_PATH=/opt/amazon/openmpi5/lib64:$LD_LIBRARY_PATH
+export CC=$(which mpicc)
+export CXX=$(which mpicxx)
+export MPICC=$(which mpicc)
+cd /tmp
+curl -O https://support.hdfgroup.org/releases/hdf5/v1_14/v1_14_6/downloads/hdf5-1.14.6.tar.gz
+tar xf hdf5-1.14.6.tar.gz
+cd hdf5-1.14.6
+./configure --enable-parallel --enable-shared --prefix=/opt/circuit_simulation/hdf5/hdf5-1.14.6/install
+make -j
+sudo make install
+cd
+rm -rf /tmp/hdf5*
 ```
 
 The rest of the installation is common for all the architectures (mac, ubuntu, alma linux). Finally, you need to run this at least once before running simulations:

@@ -16,9 +16,6 @@ fi
 
 echo "Detected platform: $PLATFORM"
 
-
-return 1
-
 # ------------------------------------------------------------------------------
 # Common environment
 # ------------------------------------------------------------------------------
@@ -52,11 +49,14 @@ elif  [[ "$PLATFORM" == "azure" ]]; then
   export CORENEURONLIB="$NEURODAMUS_NEOCORTEX_ROOT/lib/libcorenrnmech.so"
   export NRNMECH_LIB_PATH="$NEURODAMUS_NEOCORTEX_ROOT/lib/libnrnmech.so"
 else
-  export PATH=/usr/lib64/openmpi/bin:$PATH
-  export LD_LIBRARY_PATH=/usr/lib64/openmpi/lib:$LD_LIBRARY_PATH
+  export PATH=/opt/amazon/openmpi5/bin:$PATH
+  export LD_LIBRARY_PATH=/opt/amazon/openmpi5/lib64:$LD_LIBRARY_PATH
 
-  export HDF5_INCLUDEDIR=/usr/include/openmpi-x86_64
-  export HDF5_LIBDIR=/usr/lib64/openmpi/lib
+  export PATH=/opt/circuit_simulation/hdf5/hdf5-1.14.6/install/bin:$PATH
+  export LD_LIBRARY_PATH=/opt/circuit_simulation/hdf5/hdf5-1.14.6/install/lib:$LD_LIBRARY_PATH
+
+  export HDF5_INCLUDEDIR=/opt/circuit_simulation/hdf5/hdf5-1.14.6/install/include
+  export HDF5_LIBDIR=/opt/circuit_simulation/hdf5/hdf5-1.14.6/install/lib
 
   export CORENEURONLIB="$NEURODAMUS_NEOCORTEX_ROOT/lib/libcorenrnmech.so"
   export NRNMECH_LIB_PATH="$NEURODAMUS_NEOCORTEX_ROOT/lib/libnrnmech.so"
@@ -83,8 +83,6 @@ else
   pip install --no-cache-dir --no-binary=h5py h5py --no-build-isolation
   pip install neurodamus morphio ruff pytest
 fi
-
-return 0
 
 if [ ! -d "libsonatareport" ]; then
     git clone https://github.com/openbraininstitute/libsonatareport.git --recursive --depth=1
@@ -126,3 +124,4 @@ if [ ! -d "$test_folder" ]; then
   download_tiny_CI_neurodamus_data
   cd ..
 fi
+
