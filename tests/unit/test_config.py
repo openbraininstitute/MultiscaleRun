@@ -75,7 +75,7 @@ def test_check():
     assert "Error: 'ndts' is a required property" in str(excinfo.value)
 
 def test_rare_syncs():
-    """ Test that the config objects emits warnings in case of rarely syncing symulators """
+    """ Test that the config object emits a warning in case of rarely syncing symulators """
     default_circuit = MsrConfig.default()
     default_circuit.multiscale_run.with_steps = True
     default_circuit.multiscale_run.metabolism.ndts = 11
