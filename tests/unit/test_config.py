@@ -91,8 +91,8 @@ def test_rare_syncs():
     assert any("77" in msg for msg in messages)
 
 if __name__ == "__main__":
-    # test_getattr()
-    # test_load()
-    # test_check()
-    # test_named_circuit()
+    test_getattr()
+    test_load()
+    test_check()
+    test_named_circuit()
     test_rare_syncs()
