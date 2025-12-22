@@ -44,6 +44,10 @@ class FakeMetabolismManager:
 
 
 def test_simple_reports():
+    """
+    Test that MsrReporter correctly initializes, records, and stores metabolism reports,
+    verifying data values, node mappings, and time arrays for both pre- and post-advance modes.
+    """
     conf = MsrConfig(config_path())
     folder_path = conf.config_path.parent / conf.output.output_dir
 
