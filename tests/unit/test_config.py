@@ -56,6 +56,7 @@ def test_load():
     MsrConfig._from_dict(conf1.multiscale_run.d)
 
 def test_check():
+    """ Check that all the checks pass """
     default_circuit = MsrConfig.default()
     # default config is valid
     default_circuit.check()
@@ -73,8 +74,25 @@ def test_check():
     assert "JSONEncoder" not in str(excinfo.value)
     assert "Error: 'ndts' is a required property" in str(excinfo.value)
 
+def test_rare_syncs():
+    """ Test that the config object emits a warning in case of rarely syncing simulators """
+    default_circuit = MsrConfig.default()
+    default_circuit.multiscale_run.with_steps = True
+    default_circuit.multiscale_run.metabolism.ndts = 11
+    default_circuit.multiscale_run.steps.ndts = 7
+    with pytest.warns(UserWarning) as record:
+        default_circuit.check()
+
+    # flatten messages
+    messages = [str(w.message) for w in record]
+
+    # assertions
+    assert any("rarely syncing" in msg for msg in messages)
+    assert any("77" in msg for msg in messages)
+
 if __name__ == "__main__":
     test_getattr()
     test_load()
     test_check()
     test_named_circuit()
+    test_rare_syncs()
