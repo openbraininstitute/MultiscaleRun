@@ -24,7 +24,7 @@ class MsrConnectionManager:
         self.config = config
         self.managers = managers
         # needed for the merge syncing scheme
-        self.cache = {}
+        self.cache = [None] * len(self.config.multiscale_run.connections)
         self.pyeval = utils.PyExprEval(self.config)
 
     @utils.cache_decorator(
@@ -155,7 +155,7 @@ class MsrConnectionManager:
             logging.debug(f"vals set in src: {con.src_simulator}")
 
     @utils.logs_decorator
-    def neurodamus2steps_sync(self, sync_event: str, icon: int, con, action: str) -> None:
+    def neurodamus2steps_sync(self, icon: int, con, action: str) -> None:
         """Syncs data from 'MsrNeurodamusManager' (source) to 'MsrStepsManager' (destination).
 
         Args:
@@ -193,10 +193,10 @@ class MsrConnectionManager:
                 )
 
         if con.action == "merge":
-            self.cache[(sync_event, icon)] = np.copy(vals)
+            self.cache[icon] = np.copy(vals)
 
     @utils.logs_decorator
-    def neurodamus2metabolism_sync(self, sync_event: str, icon: int, con, action: str) -> None:
+    def neurodamus2metabolism_sync(self, icon: int, con, action: str) -> None:
         """Syncs data from 'MsrNeurodamusManager' (source) to 'MsrMetabolismManager' (destination).
 
         Args:
@@ -213,6 +213,7 @@ class MsrConnectionManager:
         Raises:
             NotImplementedError: If the action is not implemented.
         """
+
         ndam_m = self.managers["neurodamus"]
 
         match action:
@@ -232,9 +233,9 @@ class MsrConnectionManager:
                 # delta Vals_src + delta Vals_dest - Vals_previous sync = new Vals
 
                 # If Vals_previous is missing, downgrade to setting
-                if (sync_event, icon) not in self.cache:
+                if icon not in self.cache:
                     self.neurodamus2metabolism_sync(
-                        sync_event=sync_event, icon=icon, con=con, action="set"
+                        icon=icon, con=con, action="set"
                     )
                     return
 
@@ -249,7 +250,7 @@ class MsrConnectionManager:
                     **con.dest_get_kwargs
                 )
                 # remove Vals_previous
-                prev_vals = self.cache[(sync_event, icon)]
+                prev_vals = self.cache[icon]
                 # merge
                 vals += dest_vals - prev_vals
                 # apply additional operations
@@ -263,9 +264,9 @@ class MsrConnectionManager:
                 )
 
         if con.action == "merge":
-            self.cache[(sync_event, icon)] = np.copy(vals)
+            self.cache[icon] = np.copy(vals)
 
-    def neurodamus2bloodflow_sync(self, sync_event: str, icon: int, con, action: str) -> None:
+    def neurodamus2bloodflow_sync(self, icon: int, con, action: str) -> None:
         """Syncs data from 'MsrNeurodamusManager' (source) to 'MsrBloodflowManager' (destination).
 
         Args:
@@ -308,9 +309,9 @@ class MsrConnectionManager:
                 )
 
         if con.action == "merge":
-            self.cache[(sync_event, icon)] = np.copy(vals)
+            self.cache[icon] = np.copy(vals)
 
-    def bloodflow2metabolism_sync(self, sync_event: str, icon: int, con, action: str) -> None:
+    def bloodflow2metabolism_sync(self, icon: int, con, action: str) -> None:
         """Syncs data from 'MsrBloodflowManager' (source) to 'MsrMetabolismManager' (destination).
 
         Args:
@@ -361,10 +362,10 @@ class MsrConnectionManager:
                 )
 
         if con.action == "merge":
-            self.cache[(sync_event, icon)] = np.copy(vals)
+            self.cache[con] = np.copy(vals)
 
     @utils.logs_decorator
-    def steps2metabolism_sync(self, sync_event: str, icon: int, con, action: str) -> None:
+    def steps2metabolism_sync(self, icon: int, con, action: str) -> None:
         """Syncs data from 'MsrStepsManager' (source) to 'MsrMetabolismManager' (destination).
 
         Args:
@@ -401,11 +402,11 @@ class MsrConnectionManager:
                 )
 
         if con.action == "merge":
-            self.cache[(sync_event, icon)] = np.copy(vals)
+            self.cache[icon] = np.copy(vals)
 
     @utils.logs_decorator
-    def process_syncs(self, sync_event: str) -> None:
-        """Dispatch to the correct syncing procedure based on the `sync_event`
+    def sync(self, idts) -> None:
+        """Process connections based on number of neurodamus time steps that passed
 
         The sync event marks, in the main loop, when the particular series of connections syncs take place.
 
@@ -434,19 +435,16 @@ class MsrConnectionManager:
             None
         """
 
-        logging.info(f"processing sync event: {sync_event}")
-
-        for icon, con in enumerate(self.config.multiscale_run.connections[sync_event]):
-            if not self.config.is_manager_active(
-                con.src_simulator
-            ) or not self.config.is_manager_active(con.dest_simulator):
-                continue
-
-            logging.info(f"   connect: {con.src_simulator} -> {con.dest_simulator}")
-
-            getattr(self, f"{con.src_simulator}2{con.dest_simulator}_sync")(
-                sync_event=sync_event, icon=icon, con=con, action=con.action
-            )
+        for icon, con in enumerate(self.config.multiscale_run.connections):
+            ndts = self.config.conn_ndts(con)
+            if ndts and (idts % ndts) == 0:
+                src_simulator = self.managers[con.src_simulator]
+                dest_simulator = self.managers[con.dest_simulator]
+                assert src_simulator.idts == dest_simulator.idts, f"{con}, {src_simulator.idts}, {dest_simulator.idts}"
+                logging.info(f"sync: {self.config.pretty_print_conn(con)}")
+                getattr(self, f"{con.src_simulator}2{con.dest_simulator}_sync")(
+                    icon=icon, con=con, action=con.action
+                )
 
     @utils.logs_decorator
     def remove_gids(self, failed_cells: list[int]):
@@ -465,21 +463,23 @@ class MsrConnectionManager:
         failed_gids = {gids[igid]: e for igid, e in enumerate(failed_cells) if e is not None}
         ndam_m.removed_gids |= failed_gids
 
+        # remove seg-related rows/cols
         to_be_removed = list(ndam_m.gen_to_be_removed_segs())
-
         if hasattr(self, "nsegXtetMat"):
             self.nsegXtetMat = utils.delete_rows(self.nsegXtetMat, to_be_removed)
         if hasattr(self, "nXnsegMatBool"):
             self.nXnsegMatBool = utils.delete_cols(self.nXnsegMatBool, to_be_removed)
 
+        # remove seg-related rows/cols
         to_be_removed = list([idx for idx, e in enumerate(failed_cells) if e is not None])
         if hasattr(self, "nXtetMat"):
             self.nXtetMat = utils.delete_rows(self.nXtetMat, to_be_removed)
         if hasattr(self, "nXnsegMatBool"):
             self.nXnsegMatBool = utils.delete_rows(self.nXnsegMatBool, to_be_removed)
 
-        for k, v in self.cache.items():
-            self.cache[k] = utils.remove_elems(v=v, to_be_removed=to_be_removed)
+        for i in range(len(self.cache)):
+            if self.cache[i] is not None:
+                self.cache[i] = utils.remove_elems(v=self.cache[i], to_be_removed=to_be_removed)
 
         if metab_m is not None:
             metab_m.parameters = utils.delete_rows(metab_m.parameters, to_be_removed)

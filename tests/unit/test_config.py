@@ -23,7 +23,6 @@ def test_getattr():
     # ensure proper data transformation
     assert isinstance(conf.config_path, Path)
     assert isinstance(conf.multiscale_run, MsrConfig)
-    assert isinstance(conf.multiscale_run.reports, MsrConfig)
     assert isinstance(conf.multiscale_run.foo_path, Path)
     assert isinstance(conf.multiscale_run.d.miao_path, Path)
     assert isinstance(conf.multiscale_run.includes, list)
@@ -32,7 +31,7 @@ def test_getattr():
     # ensure objects are not copied whenever we access a property
     assert id(conf.multiscale_run) == id(conf.multiscale_run)
     assert id(conf.multiscale_run.includes) == id(conf.multiscale_run.includes)
-    assert id(conf.multiscale_run.reports) == id(conf.multiscale_run.reports)
+    assert id(conf.multiscale_run.metabolism.reports) == id(conf.multiscale_run.metabolism.reports)
 
 
 def test_load():
@@ -56,8 +55,8 @@ def test_load():
     # finally, config can be a Python dict
     MsrConfig._from_dict(conf1.multiscale_run.d)
 
-
 def test_check():
+    """ Check that all the checks pass """
     default_circuit = MsrConfig.default()
     # default config is valid
     default_circuit.check()
@@ -75,9 +74,25 @@ def test_check():
     assert "JSONEncoder" not in str(excinfo.value)
     assert "Error: 'ndts' is a required property" in str(excinfo.value)
 
+def test_rare_syncs():
+    """ Test that the config object emits a warning in case of rarely syncing simulators """
+    default_circuit = MsrConfig.default()
+    default_circuit.multiscale_run.with_steps = True
+    default_circuit.multiscale_run.metabolism.ndts = 11
+    default_circuit.multiscale_run.steps.ndts = 7
+    with pytest.warns(UserWarning) as record:
+        default_circuit.check()
+
+    # flatten messages
+    messages = [str(w.message) for w in record]
+
+    # assertions
+    assert any("rarely syncing" in msg for msg in messages)
+    assert any("77" in msg for msg in messages)
 
 if __name__ == "__main__":
     test_getattr()
     test_load()
     test_check()
     test_named_circuit()
+    test_rare_syncs()

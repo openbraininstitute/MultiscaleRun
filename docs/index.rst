@@ -7,6 +7,10 @@
    :alt: Dual run with highlighted connections
    :align: center
 
+.. image:: orchestration_scheme.drawio.svg
+   :alt: Full orchestration scheme
+   :align: center
+
 .. mdinclude:: ../README.md
 
 Python API Reference

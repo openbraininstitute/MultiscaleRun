@@ -5,6 +5,8 @@ import libsonata
 import numpy as np
 from scipy.integrate import solve_ivp
 
+from multiscale_run import reporter
+
 from . import config, utils
 from .metabolism import constants, indexes, initial_conditions, model
 
@@ -31,7 +33,7 @@ class MsrMetabolismManager:
         "exclude_neuron": MsrExcludeNeuronException,
     }
 
-    def __init__(self, config, neuron_pop_name: str, raw_gids: list[int]):
+    def __init__(self, config, neuron_pop_name: str, ncs: list):
         """
         Initialize the MsrMetabolismManager.
 
@@ -72,16 +74,33 @@ class MsrMetabolismManager:
         """
         self.config = config
 
+        self.name = "metabolism"
         self.vm = None  
         self.parameters = None 
-        self.tspan_m = (-1, -1)
+
         self.neuron_node_pop = libsonata.CircuitConfig.from_file(
             str(self.config.config_path.parent / self.config.network)
         ).node_population(neuron_pop_name)
-        self.raw_gids = raw_gids
-        self.reset()
+        self.ncs = ncs
+        self.idts = 0
+        self.reset_constants()
+        self.reset_u0()
+        self.reset_parameters()
+
+        self.reporter = reporter.MsrReporter(
+            config=self.config,
+            gids=self.raw_gids
+        )
+        self.reporter.init_files("metabolism", self.config.metabolism_dt, is_post_adv=False)
+        self.reporter.init_files("metabolism", self.config.metabolism_dt, is_post_adv=True)
+
+    @property
+    def raw_gids(self):
+        """List of raw GIDs from neuron connections."""
+        return [nc.raw_gid for nc in self.ncs]
 
     def get_error(self, key: str):
+        """Get exception class by error key."""
         try:
             return self.errors[key]
         except KeyError as e:
@@ -90,8 +109,12 @@ class MsrMetabolismManager:
             ) from e
 
     @property
+    def ndts(self):
+        return self.config.multiscale_run.metabolism.ndts
+
+    @property
     def ngids(self):
-        """Gid number"""
+        """Number of GIDs managed by this instance."""
         return len(self.raw_gids)
     
     @staticmethod
@@ -135,7 +158,7 @@ class MsrMetabolismManager:
         return [1] * self.parameters.shape[0]
 
     @utils.logs_decorator
-    def _advance_gid(self, igid: int, i_metab: int, failed_cells: list[str]):
+    def _advance_gid(self, igid: int, failed_cells: list[str]):
         """Advance metabolism simulation for gid: gids[igid] using Python.
 
         Args:
@@ -147,10 +170,11 @@ class MsrMetabolismManager:
             MsrMetabManagerException: If solver fails.
         """
 
-        metab_dt = self.config.metabolism_dt
+        # idts are the number of neurodamus dt we want to advance
+        dt = self.config.neurodamus_dt
         tspan_m = (
-            1e-3 * float(i_metab) * metab_dt,
-            1e-3 * (float(i_metab) + 1.0) * metab_dt,
+            1e-3 * float(self.idts) * dt,
+            1e-3 * (float(self.idts + self.ndts)) * dt,
         )
 
         u0 = self.vm[igid, :]
@@ -181,20 +205,26 @@ class MsrMetabolismManager:
             raise e
 
     @utils.logs_decorator
-    def advance(self, i_metab: int, failed_cells: list) -> None:
-        """Advance metabolism simulation
+    def solve(self, idts: int, failed_cells: list) -> None:
+        """Advance metabolism simulation to target time step.
 
         Already failed cells are skipped.
 
         Args:
-            i_metab: metabolism, time step counter.
+            idts: Target time step in neurodamus dt units to advance to.
             failed_cells: List of errors for the failed cells. Cells that are alive have `None` as value here.
         """
-        for igid, err in enumerate(failed_cells):
-            if err is not None:
-                continue
+        if self.idts + self.ndts <= idts:
+            self.reporter.record(idt = self.idts // self.ndts, simulator = self, gids = self.raw_gids, is_post_adv=False)
+            for igid, err in enumerate(failed_cells):
+                if err is not None:
+                    continue
 
-            self._advance_gid(igid=igid, i_metab=i_metab, failed_cells=failed_cells)
+                self._advance_gid(igid=igid, failed_cells=failed_cells)
+            self.reporter.record(idt = self.idts // self.ndts, simulator = self, gids = self.raw_gids, is_post_adv=True)
+            self.idts += self.ndts
+
+            
 
     def _get_GLY_a_and_mito_vol_frac(self, raw_gid: int):
         """Get glycogen (GLY_a) and mitochondrial volume fraction.
@@ -221,15 +251,6 @@ class MsrMetabolismManager:
             glycogen_scaled[layer_idx],
             mito_volume_fraction_scaled[layer_idx],
         )
-
-
-    @utils.logs_decorator
-    def reset(self):
-        """Reset the parameters and initial conditions for metabolic simulation.
-        """
-        self.reset_constants()
-        self.reset_u0()
-        self.reset_parameters()
         
     def reset_u0(self):
         """
