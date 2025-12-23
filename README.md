@@ -109,21 +109,12 @@ jupyter lab
 
 open `postproc.ipynb` and run. By default it presents all the traces for the gids `[0, 1, 2]`. The notebook should be self-explainatory and can be changed at will. 
 
-#### Unit tests
-
-Locally, we use tox to run the unit tests:
-
-```bash
-pip install tox
-tox -e unit
-```
-
 ### Docs
 
 Build the documentation locally with:
 
 ```bash
-tox -e docs
+sphinx-build -W --keep-going docs docs/build/html
 ```
 
 Alternatively, check the official documentation at: https://multiscalerun.readthedocs.io/stable/
