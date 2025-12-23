@@ -70,7 +70,23 @@ The environment is still set as it is needed.
 
 You can always modify them and recall the setup script. It will not override your changes. 
 
-### Test
+### Unit Tests
+
+Just run with pytest:
+
+```bash
+pytest tests/unit
+```
+
+### Formatting
+
+Use ruff:
+
+```bash
+ruff check --fix
+```
+
+### Integration Test
 
 You just need to go to `tiny_CI_test` and run. The simulation is too slow with just one core. I suggest at least 8 cores. Do not go above 90 for now as this leaves some cores without neurons (edge case that I did not check). 
 
@@ -93,21 +109,12 @@ jupyter lab
 
 open `postproc.ipynb` and run. By default it presents all the traces for the gids `[0, 1, 2]`. The notebook should be self-explainatory and can be changed at will. 
 
-#### Unit tests
-
-Locally, we use tox to run the unit tests:
-
-```bash
-pip install tox
-tox -e unit
-```
-
 ### Docs
 
 Build the documentation locally with:
 
 ```bash
-tox -e docs
+sphinx-build -W --keep-going docs docs/build/html
 ```
 
 Alternatively, check the official documentation at: https://multiscalerun.readthedocs.io/stable/
