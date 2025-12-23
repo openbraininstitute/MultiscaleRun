@@ -13,7 +13,7 @@ MultiscaleRun is an orchestrator of simulators. Currently, only Neurodamus (NEUR
 
 You just need to run the setup script at least once before running the simulation.
 
-**With Spack** (requires OBI spack installation):
+#### With Spack (requires OBI spack installation):
 ```bash
 source setup.sh
 ```
@@ -33,7 +33,9 @@ The environment is still set as it is needed.
 
 You can always modify them and recall the setup script. It will not override your changes. 
 
-**Without Spack** (uses Homebrew on macOS):
+#### Without Spack:
+
+##### Mac:
 
 In this case we leverage brew. First we need to install a few things:
 
@@ -47,7 +49,59 @@ We also need to link `python3`:
 ln -sf /opt/homebrew/bin/python3.12 /opt/homebrew/bin/python3
 ```
 
-Finally, you need to run this at least once before running simulations:
+#### Ubuntu (azure):
+
+```bash
+sudo apt-get update
+sudo apt-get install -y mpich libmpich-dev libhdf5-mpich-dev hdf5-tools flex libfl-dev bison ninja-build libreadline-dev
+```
+
+#### Amazon Linux 2023 (aws):
+
+```bash
+sudo dnf update -y
+sudo dnf -y install bison cpp cmake gcc-c++ flex flex-devel git python3.11-devel python3-devel python3-pip readline-devel ninja-build openmpi openmpi-devel
+```
+
+This distro does not have openmpi. We need to use the efa installer:
+
+```bash
+cd /tmp
+curl -O https://efa-installer.amazonaws.com/aws-efa-installer-latest.tar.gz
+tar xf aws-efa-installer-latest.tar.gz
+cd aws-efa-installer
+sudo ./efa_installer.sh -y --skip-kmod --mpi=openmpi5
+cd -
+rm -rf /tmp/aws*
+```
+
+Set python 3.11 as default (select 2):
+```bash
+sudo alternatives --install /usr/bin/python3 python3 /usr/bin/python3.9 1
+sudo alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 2
+sudo alternatives --config python3
+```
+
+This distro does not have hdf5. We install it:
+
+```bash
+export PATH=/opt/amazon/openmpi5/bin:$PATH
+export LD_LIBRARY_PATH=/opt/amazon/openmpi5/lib64:$LD_LIBRARY_PATH
+export CC=$(which mpicc)
+export CXX=$(which mpicxx)
+export MPICC=$(which mpicc)
+cd /tmp
+curl -O https://support.hdfgroup.org/releases/hdf5/v1_14/v1_14_6/downloads/hdf5-1.14.6.tar.gz
+tar xf hdf5-1.14.6.tar.gz
+cd hdf5-1.14.6
+./configure --enable-parallel --enable-shared --prefix=/opt/circuit_simulation/hdf5/hdf5-1.14.6/install
+make -j
+sudo make install
+cd
+rm -rf /tmp/hdf5*
+```
+
+The rest of the installation is common for all the architectures (mac, ubuntu, alma linux). Finally, you need to run this at least once before running simulations:
 
 ```bash
 source setup_no_spack.sh
@@ -118,6 +172,23 @@ sphinx-build -W --keep-going docs docs/build/html
 ```
 
 Alternatively, check the official documentation at: https://multiscalerun.readthedocs.io/stable/
+
+### Azure
+
+To run on Azure, request a VM from Erik. Once you have the credentials:
+
+1. SSH into the VM.
+2. Install the dependencies by following the [Setup](#setup) section (Linux).
+3. Run the simulation.
+4. Start post-processing on the VM:
+   ```bash
+   jupyter lab --no-browser --port=8888
+   ```
+   In parallel, on your local machine, create an SSH tunnel:
+   ```bash
+   ssh -L 8888:localhost:8888 <user>@<remote-host>
+   ```
+   Then open Jupyter in your local browser at http://localhost:8888
 
 ## Authors
 
