@@ -200,6 +200,10 @@ class MsrConfig(dict):
             raise AttributeError(
                 f"'MsrConfig' object has no attribute '{key}'. Available keys: {', '.join(self.keys())}"
             )
+        
+    def __setattr__(self, key, value):
+        """ Set by . notation. For primitive types we need this """
+        self[key] = value
 
     def items(self):
         """Generate key-value pairs from the configuration.
@@ -318,7 +322,7 @@ class MsrConfig(dict):
         except jsonschema.exceptions.ValidationError as ve:
             raise MsrConfigSchemaError(ve)
 
-
+        self._check_ndts()
 
     def _check_ndts(self):
         """Check and validate connection ndts for active simulators.
@@ -339,7 +343,6 @@ class MsrConfig(dict):
 
             if not conn_ndts:
                 raise MsrConfigException(f"Connection: {conn} has both simulators active but the sync ndts is not valid: {conn_ndts}")
-
             src_ndts = self.manager_ndts(conn.src_simulator)
             dest_ndts = self.manager_ndts(conn.dest_simulator)
 
@@ -370,7 +373,7 @@ class MsrConfig(dict):
     def is_manager_active(self, manager_name: str):
         """Convenience function to check if a manager is active"""
         if "multiscale_run" not in self:
-            return False
+            raise MsrConfigException("`multiscale_run` property is missing from this config file! I cannot retrieve the manager")
         if manager_name == "neurodamus":
             return True
         return self.multiscale_run.get(f"with_{manager_name}", False)

@@ -215,7 +215,7 @@
         "with_bloodflow": false,
         "cache_path": "cache",
         "metabolism": {
-            "ndts": 40,
+            "ndts": 400,
             "u0": {},
             "constants": {
                 "ATDMP": {
