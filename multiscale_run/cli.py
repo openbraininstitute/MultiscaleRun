@@ -77,15 +77,8 @@ def init(directory, circuit, check=True, force=False, metabolism="standard"):
 
     circuit_def = NAMED_CIRCUITS[circuit]
 
-    sbatch_parameters = copy.copy(circuit_def.sbatch_parameters)
-    loaded_modules = filter(lambda s: len(s) > 0, os.environ.get("LOADEDMODULES", "").split(":"))
-    sbatch_parameters["loaded_modules"] = loaded_modules
-    SBATCH_TEMPLATE.stream(sbatch_parameters).dump("simulation.sbatch")
     shutil.copy(MSR_POSTPROC, MSR_POSTPROC.name)
-    shutil.copy(circuit_def.path / "simulation_config.json", ".")
-    shutil.copy(circuit_def.path / "circuit_config.json", ".")
-    shutil.copy(circuit_def.path / "node_sets.json", ".")
-    copy_symlinks(circuit_def.path, ".")
+    shutil.copytree(circuit_def.path, ".", dirs_exist_ok=True)
 
     rd = {"msr_version": str(__version__)}
 
