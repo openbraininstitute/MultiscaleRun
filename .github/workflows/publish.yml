@@ -30,11 +30,9 @@ jobs:
     - name: Cache python virtual env
       id: cache-venv
       uses: actions/cache@v3
-      env:
-        cache-name: cache-venv
       with:
         path: venv
-        key: cache-venv
+        key: publish-venv-${{ runner.os }}-py311-${{ hashFiles('pyproject.toml') }}
 
     - name: Setup venv
       if: steps.cache-venv.outputs.cache-hit != 'true'
