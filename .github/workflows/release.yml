@@ -1,13 +1,18 @@
 name: Release
 
 on:
-  push:
-    tags:
-      - 'v*.*.*'  # triggers on version tags like v0.9.0
+  pull_request:
+  # push:
+  #   tags:
+  #     - 'v*.*.*'
 
 jobs:
   build-and-publish:
     runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      id-token: write   # required for PyPI trusted publisher (OIDC)
 
     steps:
       - uses: actions/checkout@v4
@@ -18,25 +23,23 @@ jobs:
           sudo apt-get install -y mpich libmpich-dev libhdf5-mpich-dev hdf5-tools flex libfl-dev bison ninja-build libreadline-dev
 
       - name: Setup Python 3.11
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
-          python-version: 3.11
+          python-version: "3.11"
 
       - name: Cache Python venv
         id: cache-venv
         uses: actions/cache@v3
-        env:
-          cache-name: cache-venv
         with:
           path: venv
-          key: cache-venv
+          key: venv-${{ runner.os }}-py311
 
       - name: Setup venv
         if: steps.cache-venv.outputs.cache-hit != 'true'
         run: |
           python -m venv venv
-          . ./venv/bin/activate
-          python -m pip install --upgrade pip setuptools build twine
+          . venv/bin/activate
+          python -m pip install --upgrade pip setuptools build
 
       - name: Activate venv
         run: |
@@ -45,23 +48,19 @@ jobs:
 
       - name: Build and install mpi4py
         if: steps.cache-venv.outputs.cache-hit != 'true'
-        run: |
-          MPICC=mpicc pip install --no-binary=mpi4py mpi4py
+        run: MPICC=mpicc pip install --no-binary=mpi4py mpi4py
 
-      - name: Build and install h5py
+      - name: Build and install h5py (MPI)
         if: steps.cache-venv.outputs.cache-hit != 'true'
         run: |
           export HDF5_INCLUDEDIR=/usr/include/hdf5/mpich
           export HDF5_LIBDIR=/usr/lib/x86_64-linux-gnu/hdf5/mpich
-          CC="mpicc" HDF5_MPI="ON" HDF5_INCLUDEDIR=$HDF5_INCLUDEDIR HDF5_LIBDIR=$HDF5_LIBDIR \
+          CC="mpicc" HDF5_MPI="ON" \
             pip install --no-cache-dir --no-binary=h5py h5py --no-build-isolation
 
       - name: Build distributions
-        run: |
-          python -m build
+        run: python -m build
 
-      - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@v1.6.0
-        with:
-          user: __token__
-          password: ${{ secrets.PYPI_API_TOKEN }}
+      # - name: Publish to PyPI (trusted publisher)
+      #   if: startsWith(github.ref, 'refs/tags/')
+      #   uses: pypa/gh-action-pypi-publish@release/v1
