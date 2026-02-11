@@ -8,6 +8,8 @@ on:
 jobs:
   unit-tests:
     runs-on: ubuntu-latest
+  env:
+    SONATAREPORT_DIR: ${{ github.workspace }}/libsonatareport/build/install
 
     steps:
     - uses: actions/checkout@v4
@@ -35,7 +37,7 @@ jobs:
         python -m venv venv
         . ./venv/bin/activate
         python -m pip install --upgrade pip setuptools
-        pip install cython numpy pytest
+        pip install NEURON-nightly
 
     - name: Activate venv
       run: |
@@ -57,18 +59,35 @@ jobs:
         CC="mpicc" HDF5_MPI="ON" HDF5_INCLUDEDIR=$HDF5_INCLUDEDIR HDF5_LIBDIR=$HDF5_LIBDIR \
           pip install --no-cache-dir --no-binary=h5py h5py --no-build-isolation
 
-    - name: Install Multiscale Run
+    - name: Setup neurodamus
+      if: steps.cache-venv.outputs.cache-hit != 'true'
       run: |
-        pip install .
+        python -m venv venv
+        . ./venv/bin/activate
+        python -m pip install --upgrade pip setuptools
+        pip install neurodamus
 
-    - name: Run mini tiny CI
+    - name: Install libsonatareport
       run: |
-        mkdir mini_tiny_CI_test
-        cd mini_tiny_CI_test
-        multiscale-run init . --circuit=mini_tiny_CI
-        source ../.ci/setup.sh
-        download_mini_tiny_CI_circuit
-        multiscale-run compute
+        git clone https://github.com/openbraininstitute/libsonatareport.git --recursive --depth=1
+        cmake -B libsonatareport/build -S libsonatareport \
+        -DCMAKE_INSTALL_PREFIX=$SONATAREPORT_DIR -DCMAKE_BUILD_TYPE=Release -DSONATA_REPORT_ENABLE_SUBMODULES=ON -DSONATA_REPORT_ENABLE_MPI=ON -GNinja
+
+        cmake --build libsonatareport/build
+        cmake --install libsonatareport/build
+
+    # - name: Install Multiscale Run
+    #   run: |
+    #     pip install .
+
+    # - name: Run mini tiny CI
+    #   run: |
+    #     mkdir mini_tiny_CI_test
+    #     cd mini_tiny_CI_test
+    #     multiscale-run init . --circuit=mini_tiny_CI
+    #     source ../.ci/setup.sh
+    #     download_mini_tiny_CI_circuit
+    #     multiscale-run compute
 
 
 

@@ -116,3 +116,4 @@ if [ ! -d "neurodamus-models" ]; then
 fi
 
 pip install -e .
+
