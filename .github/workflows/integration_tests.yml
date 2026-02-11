@@ -14,6 +14,7 @@ jobs:
       HOC_LIBRARY_PATH: ${{ github.workspace }}/neurodamus-models/build/install/share/neurodamus_neocortex/hoc
       LIBSONATA_ZERO_BASED_GIDS: 1
       HDF5_MPI: ON
+      NRNMECH_LIB_PATH: ${{ github.workspace }}/neurodamus-models/build/install/lib/libnrnmech.so
 
     steps:
     - uses: actions/checkout@v4
