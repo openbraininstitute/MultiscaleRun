@@ -200,7 +200,7 @@ def delete_cols(mat, indices):
         return np.delete(mat, indices, axis=1)
     if isinstance(mat, sparse.csr_matrix):
         all_cols = np.arange(mat.shape[1])
-        cols_to_keep = np.where(np.logical_not(np.in1d(all_cols, indices)))[0]
+        cols_to_keep = np.where(np.logical_not(np.isin(all_cols, indices)))[0]
         return mat[:, cols_to_keep]
 
     raise ValueError(
