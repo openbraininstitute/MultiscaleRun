@@ -129,15 +129,15 @@ jobs:
         cmake --build neurodamus-models/build
         cmake --install neurodamus-models/build
 
-    # - name: Install Multiscale Run
-    #   run: |
-    #     pip install .
+    - name: Install Multiscale Run
+      run: |
+        pip install .
 
-    # - name: Run mini tiny CI
-    #   run: |
-    #     mkdir mini_tiny_CI_test
-    #     cd mini_tiny_CI_test
-    #     multiscale-run init . --circuit=mini_tiny_CI
-    #     source ../.ci/setup.sh
-    #     download_mini_tiny_CI_circuit
-    #     multiscale-run compute
+    - name: Run mini tiny CI
+      run: |
+        mkdir mini_tiny_CI_test
+        cd mini_tiny_CI_test
+        multiscale-run init . --circuit=mini_tiny_CI
+        source ../.ci/setup.sh
+        download_mini_tiny_CI_circuit
+        multiscale-run compute
