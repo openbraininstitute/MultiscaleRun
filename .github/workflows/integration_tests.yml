@@ -119,7 +119,7 @@ jobs:
         multiscale-run init . --circuit=mini_tiny_CI
         source ../.ci/setup.sh
         download_mini_tiny_CI_circuit
-        multiscale-run compute
+        mpirun -n 2 multiscale-run compute
 
 
 
