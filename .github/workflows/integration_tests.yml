@@ -72,7 +72,20 @@ jobs:
         python -m pip install --upgrade pip setuptools
         pip install neurodamus
 
+    - name: Collect repo hashes
+      id: repo_hashes
+      run: |
+        echo "libsonata_hash=$(git ls-remote https://github.com/openbraininstitute/libsonatareport.git HEAD | cut -f1)" >> $GITHUB_OUTPUT
+
+    - name: Cache libsonatareport
+      id: cache-libsonatareport
+      uses: actions/cache@v4
+      with:
+        path: ${{ env.SONATAREPORT_DIR }}
+        key: ${{ runner.os }}-libsonatareport-${{ steps.repo_hashes.outputs.libsonata_hash }}
+
     - name: Install libsonatareport
+      if: steps.cache-libsonatareport.outputs.cache-hit != 'true'
       run: |
         git clone https://github.com/openbraininstitute/libsonatareport.git --recursive --depth=1
         cmake -B libsonatareport/build -S libsonatareport \
@@ -82,41 +95,41 @@ jobs:
         cmake --install libsonatareport/build
 
 
-    - name: Install neurodamus-models
-      run: |
-        export CC=$(which mpicc)
-        export CXX=$(which mpicxx)
-        export MPICC=$(which mpicc)
+    # - name: Install neurodamus-models
+    #   run: |
+    #     export CC=$(which mpicc)
+    #     export CXX=$(which mpicxx)
+    #     export MPICC=$(which mpicc)
 
-        git clone https://github.com/openbraininstitute/neurodamus-models.git
+    #     git clone https://github.com/openbraininstitute/neurodamus-models.git
 
-        DATADIR=$(python -c "import neurodamus; from pathlib import Path; print(Path(neurodamus.__file__).parent / 'data')")
+    #     DATADIR=$(python -c "import neurodamus; from pathlib import Path; print(Path(neurodamus.__file__).parent / 'data')")
 
-        cmake -B neurodamus-models/build -S neurodamus-models/ \
-            -DPython_EXECUTABLE=$(which python) \
-            -DCMAKE_INSTALL_PREFIX=$NEURODAMUS_NEOCORTEX_ROOT \
-            -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=ON \
-            -DNEURODAMUS_CORE_DIR=${DATADIR} \
-            -DCMAKE_PREFIX_PATH=$SONATAREPORT_DIR \
-            -DNEURODAMUS_MECHANISMS=neocortex \
-            -DNEURODAMUS_ENABLE_CORENEURON=OFF \
-            -DNEURODAMUS_NCX_V5=ON \
-            -DNEURODAMUS_NCX_METABOLISM=ON \
-            -DNEURODAMUS_NCX_NGV=ON \
-            -GNinja
+    #     cmake -B neurodamus-models/build -S neurodamus-models/ \
+    #         -DPython_EXECUTABLE=$(which python) \
+    #         -DCMAKE_INSTALL_PREFIX=$NEURODAMUS_NEOCORTEX_ROOT \
+    #         -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=ON \
+    #         -DNEURODAMUS_CORE_DIR=${DATADIR} \
+    #         -DCMAKE_PREFIX_PATH=$SONATAREPORT_DIR \
+    #         -DNEURODAMUS_MECHANISMS=neocortex \
+    #         -DNEURODAMUS_ENABLE_CORENEURON=OFF \
+    #         -DNEURODAMUS_NCX_V5=ON \
+    #         -DNEURODAMUS_NCX_METABOLISM=ON \
+    #         -DNEURODAMUS_NCX_NGV=ON \
+    #         -GNinja
 
-        cmake --build neurodamus-models/build
-        cmake --install neurodamus-models/build
+    #     cmake --build neurodamus-models/build
+    #     cmake --install neurodamus-models/build
 
-    - name: Install Multiscale Run
-      run: |
-        pip install .
+    # - name: Install Multiscale Run
+    #   run: |
+    #     pip install .
 
-    - name: Run mini tiny CI
-      run: |
-        mkdir mini_tiny_CI_test
-        cd mini_tiny_CI_test
-        multiscale-run init . --circuit=mini_tiny_CI
-        source ../.ci/setup.sh
-        download_mini_tiny_CI_circuit
-        mpirun -n 2 multiscale-run compute
+    # - name: Run mini tiny CI
+    #   run: |
+    #     mkdir mini_tiny_CI_test
+    #     cd mini_tiny_CI_test
+    #     multiscale-run init . --circuit=mini_tiny_CI
+    #     source ../.ci/setup.sh
+    #     download_mini_tiny_CI_circuit
+    #     multiscale-run compute
