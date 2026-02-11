@@ -12,6 +12,8 @@ jobs:
       SONATAREPORT_DIR: ${{ github.workspace }}/libsonatareport/build/install
       NEURODAMUS_NEOCORTEX_ROOT: ${{ github.workspace }}/neurodamus-models/build/install
       HOC_LIBRARY_PATH: ${{ github.workspace }}/neurodamus-models/build/install/share/neurodamus_neocortex/hoc
+      LIBSONATA_ZERO_BASED_GIDS: 1
+      HDF5_MPI: ON
 
     steps:
     - uses: actions/checkout@v4
@@ -81,6 +83,10 @@ jobs:
 
     - name: Install neurodamus-models
       run: |
+        export CC=$(which mpicc)
+        export CXX=$(which mpicxx)
+        export MPICC=$(which mpicc)
+        
         git clone https://github.com/openbraininstitute/neurodamus-models.git
 
         DATADIR=$(python -c "import neurodamus; from pathlib import Path; print(Path(neurodamus.__file__).parent / 'data')")
