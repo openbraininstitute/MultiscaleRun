@@ -27,7 +27,7 @@ jobs:
       uses: actions/cache@v3
       with:
         path: venv
-        key: tests-venv-${{ runner.os }}-py311-${{ hashFiles('pyproject.toml') }}
+        key: unit-tests-venv-${{ runner.os }}-py311
 
     - name: Setup venv
       if: steps.cache-venv.outputs.cache-hit != 'true'
