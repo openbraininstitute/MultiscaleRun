@@ -42,7 +42,7 @@ jobs:
         python -m venv venv
         . ./venv/bin/activate
         python -m pip install --upgrade pip setuptools
-        pip install NEURON-nightly morphio
+        pip install NEURON-nightly morphio cython
 
     - name: Activate venv
       run: |
