@@ -8,8 +8,8 @@ on:
 jobs:
   unit-tests:
     runs-on: ubuntu-latest
-  env:
-    SONATAREPORT_DIR: ${{ github.workspace }}/libsonatareport/build/install
+    env:
+      SONATAREPORT_DIR: ${{ github.workspace }}/libsonatareport/build/install
 
     steps:
     - uses: actions/checkout@v4
