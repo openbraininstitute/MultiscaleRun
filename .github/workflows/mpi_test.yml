@@ -38,8 +38,4 @@ jobs:
         run: |
           which python
           # ensure we use venv python
-          mpirun -np 2  \
-          -x PATH \
-          -x LD_LIBRARY_PATH \
-          -x VIRTUAL_ENV \
-          python mpi_test.py
+          mpirun -np 2 python mpi_test.py
