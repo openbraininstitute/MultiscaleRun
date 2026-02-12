@@ -20,7 +20,7 @@ jobs:
           which mpicc
           which mpirun
           mpicc -v
-          mpirun -V
+          mpiexec -V
 
 
       # - name: Compile and run MPI test
