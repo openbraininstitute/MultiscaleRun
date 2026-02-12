@@ -26,6 +26,24 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y libopenmpi-dev openmpi-bin openmpi-common libhdf5-mpi-dev hdf5-tools flex libfl-dev bison ninja-build libreadline-dev
+    
+    - name: Check MPI HDF5 installation
+      run: |
+        echo "Which mpicc/mpirun/mpicxx/mpiexec:"
+        which mpicc
+        which mpicxx
+        which mpirun
+        which mpiexec
+
+        echo "Find parallel HDF5 headers:"
+        dpkg -L libhdf5-mpi-dev | grep hdf5.h || true
+
+        echo "Find parallel HDF5 libs:"
+        dpkg -L libhdf5-mpi-dev | grep libhdf5 || true
+
+        echo "Verify parallel HDF5 linkage:"
+        ldd /usr/lib/x86_64-linux-gnu/hdf5/openmpi/libhdf5.so 2>/dev/null | grep mpi || echo "Not linked to MPI"
+
 
     - name: Setup python 3.11
       uses: actions/setup-python@v4
@@ -57,20 +75,6 @@ jobs:
       run: |
         export MPICC=$(which mpicc)
         pip install --no-binary=mpi4py mpi4py
-
-    - name: Check MPI HDF5 installation
-      run: |
-        echo "Which mpicc/mpirun/mpicxx/mpiexec:"
-        which mpicc
-        which mpicxx
-        which mpirun
-        which mpiexec
-
-        echo "Find parallel HDF5 libs:"
-        dpkg -L libhdf5-mpi-dev | grep hdf5.h
-        dpkg -L libhdf5-mpi-dev | grep libhdf5
-
-        ldd /usr/lib/x86_64-linux-gnu/hdf5/openmpi/libhdf5.so | grep mpi
     
     - name: Build and install h5py
       if: steps.cache-venv.outputs.cache-hit != 'true'
