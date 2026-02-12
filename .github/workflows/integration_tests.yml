@@ -79,8 +79,8 @@ jobs:
     - name: Build and install h5py
       if: steps.cache-venv.outputs.cache-hit != 'true'
       run: |
-        export HDF5_INCLUDEDIR=/usr/include/hdf5/mpio
-        export HDF5_LIBDIR=/usr/lib/x86_64-linux-gnu/hdf5/mpio
+        export HDF5_INCLUDEDIR=/usr/include/hdf5/openmpi
+        export HDF5_LIBDIR=/usr/lib/x86_64-linux-gnu/hdf5/openmpi
         # Upgrade setuptools again, to avoid build error from `project.license`
         # Neuron installed older setuptools but it doesn't work for h5py
         CC="mpicc" HDF5_MPI="ON" HDF5_INCLUDEDIR=$HDF5_INCLUDEDIR HDF5_LIBDIR=$HDF5_LIBDIR \
