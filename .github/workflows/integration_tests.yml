@@ -8,6 +8,9 @@ on:
 jobs:
   integration-tests:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        mode: [serial, mpi]
     env:
       SONATAREPORT_DIR: ${{ github.workspace }}/libsonatareport/build/install
       NEURODAMUS_NEOCORTEX_ROOT: ${{ github.workspace }}/neurodamus-models/build/install
@@ -133,7 +136,8 @@ jobs:
       run: |
         pip install .
 
-    - name: Run mini tiny CI
+    - name: Run mini tiny CI (serial)
+      if: matrix.mode == 'serial'
       run: |
         mkdir mini_tiny_CI_test
         cd mini_tiny_CI_test
@@ -141,3 +145,22 @@ jobs:
         source ../.ci/setup.sh
         download_mini_tiny_CI_circuit
         multiscale-run compute
+
+    - name: MPI smoke test (collective)
+      run: |
+        mpirun -n 2 python - << 'EOF'
+        from mpi4py import MPI
+        comm = MPI.COMM_WORLD
+        total = comm.allreduce(1, op=MPI.SUM)
+        assert total == 2
+        EOF
+
+    - name: Run mini tiny CI (mpi 2 ranks)
+      if: matrix.mode == 'mpi'
+      run: |
+        mkdir mini_tiny_CI_test
+        cd mini_tiny_CI_test
+        multiscale-run init . --circuit=mini_tiny_CI
+        source ../.ci/setup.sh
+        download_mini_tiny_CI_circuit
+        mpirun -n 2 multiscale-run compute
