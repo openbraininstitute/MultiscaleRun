@@ -27,9 +27,11 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y libhdf5-mpi-dev hdf5-tools flex libfl-dev bison ninja-build libreadline-dev build-essential wget
 
-    - name: Build OpenMPI 5 from source
+    # in openMPI 5 the removed the support for the cpp bindings. we cannot upgrade since libsonatareport
+    # still uses them
+    - name: Build OpenMPI 4 from source
       run: |
-        OPENMPI_VERSION=5.0.9
+        OPENMPI_VERSION=4.1.8
         mkdir -p $HOME/openmpi_build
         cd $HOME/openmpi_build
         wget https://download.open-mpi.org/release/open-mpi/v5.0/openmpi-$OPENMPI_VERSION.tar.gz
