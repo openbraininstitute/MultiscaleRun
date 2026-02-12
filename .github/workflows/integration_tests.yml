@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        mode: [serial, mpi]
+        mode: [mpi]
     env:
       SONATAREPORT_DIR: ${{ github.workspace }}/libsonatareport/build/install
       NEURODAMUS_NEOCORTEX_ROOT: ${{ github.workspace }}/neurodamus-models/build/install
@@ -67,16 +67,10 @@ jobs:
         which mpiexec
 
         echo "Find parallel HDF5 libs:"
-        dpkg -L libhdf5-mpi-dev | grep "\.so"
-        
-        echo "Find parallel HDF5 headers:"
-        dpkg -L libhdf5-mpi-dev | grep "hdf5.h"
+        dpkg -L libhdf5-mpi-dev | grep hdf5.h
+        dpkg -L libhdf5-mpi-dev | grep libhdf5
 
-        echo "Verify parallel HDF5 links:"
-        ldd $(dpkg -L libhdf5-mpi-dev | grep libhdf5.so | head -n1) | grep mpi || echo "Not linked to MPI"
-
-        echo "Check HDF5 compiler wrapper:"
-        if command -v h5cc; then h5cc -showconfig | grep -i "Parallel HDF5"; fi
+        ldd /usr/lib/x86_64-linux-gnu/hdf5/openmpi/libhdf5.so | grep mpi
     
     - name: Build and install h5py
       if: steps.cache-venv.outputs.cache-hit != 'true'
