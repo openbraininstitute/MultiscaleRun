@@ -17,36 +17,9 @@ jobs:
 
       - name: Compile and run MPI test
         run: |
-          which mpicc
-          which mpicxx
-          which mpiexec
-          which mpirun
-          echo "----"
-          ls -l /usr/bin/mpicc
-          ls -l /usr/bin/mpicxx
-          ls -l /usr/bin/mpiexec
-          ls -l /usr/bin/mpirun
-          echo "----"
-
-          readlink -f /usr/bin/mpicc
-          readlink -f /usr/bin/mpicxx
-          readlink -f /usr/bin/mpirun
-          readlink -f /usr/bin/mpiexec
-
-          echo "----"
-
-          mpicc -show
-          mpiexec --version
-
-          echo "----"
-          mpiexec --version
           mpicxx mpi_test.cpp -o mpi_test
           mpiexec -np 2 ./mpi_test
 
-          ldd mpi_test
-          echo "----"
-          mpicc mpi_test.c -o mpi_test_c
-          mpirun -np 2 ./mpi_test_c
 
 
       # - name: Setup Python 3.11
