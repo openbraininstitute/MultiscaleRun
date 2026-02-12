@@ -29,10 +29,10 @@ jobs:
 
     - name: Build OpenMPI 5 from source
       run: |
-        OPENMPI_VERSION=5.1.2
+        OPENMPI_VERSION=5.0.9
         mkdir -p $HOME/openmpi_build
         cd $HOME/openmpi_build
-        wget https://download.open-mpi.org/release/open-mpi/v5.1/openmpi-$OPENMPI_VERSION.tar.gz
+        wget https://download.open-mpi.org/release/open-mpi/v5.0/openmpi-$OPENMPI_VERSION.tar.gz
         tar xf openmpi-$OPENMPI_VERSION.tar.gz
         cd openmpi-$OPENMPI_VERSION
         ./configure --prefix=$HOME/openmpi --enable-mpi-cxx --enable-mpi-fortran
