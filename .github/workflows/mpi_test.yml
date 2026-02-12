@@ -20,7 +20,7 @@ jobs:
           which mpicc
           which mpirun
           mpicc -v
-          mpiexec -V
+          mpirun -np 1 bash -c 'echo "Hello from rank 0"'
 
 
       # - name: Compile and run MPI test
