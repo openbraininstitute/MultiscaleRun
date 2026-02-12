@@ -28,6 +28,15 @@ jobs:
           ls -l /usr/bin/mpiexec
           ls -l /usr/bin/mpirun
           echo "----"
+
+          readlink -f /usr/bin/mpicc
+          readlink -f /usr/bin/mpicxx
+          readlink -f /usr/bin/mpiexec
+
+          mpicc -show
+          mpiexec --version
+
+          echo "----"
           mpiexec --version
           mpicxx mpi_test.cpp -o mpi_test
           mpiexec --launcher fork -np 2 ./mpi_test
