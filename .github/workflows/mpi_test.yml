@@ -21,6 +21,7 @@ jobs:
           which mpicc
           which mpicxx
           which mpiexec
+          which mpirun
           echo "----"
           mpiexec --version
           mpicxx mpi_test.cpp -o mpi_test
