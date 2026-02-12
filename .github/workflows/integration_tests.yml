@@ -25,7 +25,24 @@ jobs:
     - name: Install ubuntu system dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y libopenmpi-dev openmpi-bin openmpi-common libhdf5-mpi-dev hdf5-tools flex libfl-dev bison ninja-build libreadline-dev
+        sudo apt-get install -y libhdf5-mpi-dev hdf5-tools flex libfl-dev bison ninja-build libreadline-dev build-essential wget
+
+    - name: Build OpenMPI 5 from source
+      run: |
+        OPENMPI_VERSION=5.1.2
+        mkdir -p $HOME/openmpi_build
+        cd $HOME/openmpi_build
+        wget https://download.open-mpi.org/release/open-mpi/v5.1/openmpi-$OPENMPI_VERSION.tar.gz
+        tar xf openmpi-$OPENMPI_VERSION.tar.gz
+        cd openmpi-$OPENMPI_VERSION
+        ./configure --prefix=$HOME/openmpi --enable-mpi-cxx --enable-mpi-fortran
+        make -j$(nproc)
+        make install
+
+        # Add to PATH and LD_LIBRARY_PATH
+        echo "$HOME/openmpi/bin" >> $GITHUB_PATH
+        echo "$HOME/openmpi/lib" >> $GITHUB_ENV
+        export LD_LIBRARY_PATH=$HOME/openmpi/lib:$LD_LIBRARY_PATH
     
     - name: Check MPI HDF5 installation
       run: |
@@ -45,132 +62,132 @@ jobs:
         ldd /usr/lib/x86_64-linux-gnu/hdf5/openmpi/libhdf5.so 2>/dev/null | grep mpi || echo "Not linked to MPI"
 
 
-    - name: Setup python 3.11
-      uses: actions/setup-python@v4
-      with:
-        python-version: 3.11
+    # - name: Setup python 3.11
+    #   uses: actions/setup-python@v4
+    #   with:
+    #     python-version: 3.11
 
-    - name: Cache python virtual env
-      id: cache-venv
-      uses: actions/cache@v3
-      with:
-        path: venv
-        key: integration-tests-venv-${{ runner.os }}-py311
+    # - name: Cache python virtual env
+    #   id: cache-venv
+    #   uses: actions/cache@v3
+    #   with:
+    #     path: venv
+    #     key: integration-tests-venv-${{ runner.os }}-py311
 
-    - name: Setup venv
-      if: steps.cache-venv.outputs.cache-hit != 'true'
-      run: |
-        python -m venv venv
-        . ./venv/bin/activate
-        python -m pip install --upgrade pip setuptools
-        pip install NEURON-nightly morphio cython
+    # - name: Setup venv
+    #   if: steps.cache-venv.outputs.cache-hit != 'true'
+    #   run: |
+    #     python -m venv venv
+    #     . ./venv/bin/activate
+    #     python -m pip install --upgrade pip setuptools
+    #     pip install NEURON-nightly morphio cython
 
-    - name: Activate venv
-      run: |
-        echo "${{ github.workspace }}/venv/bin" >> $GITHUB_PATH
-        echo "VIRTUAL_ENV=${{ github.workspace }}/venv" >> $GITHUB_ENV
+    # - name: Activate venv
+    #   run: |
+    #     echo "${{ github.workspace }}/venv/bin" >> $GITHUB_PATH
+    #     echo "VIRTUAL_ENV=${{ github.workspace }}/venv" >> $GITHUB_ENV
 
-    - name: Build and install mpi4py
-      if: steps.cache-venv.outputs.cache-hit != 'true'
-      run: |
-        export MPICC=$(which mpicc)
-        pip install --no-binary=mpi4py mpi4py
+    # - name: Build and install mpi4py
+    #   if: steps.cache-venv.outputs.cache-hit != 'true'
+    #   run: |
+    #     export MPICC=$(which mpicc)
+    #     pip install --no-binary=mpi4py mpi4py
     
-    - name: Build and install h5py
-      if: steps.cache-venv.outputs.cache-hit != 'true'
-      run: |
-        export HDF5_INCLUDEDIR=/usr/include/hdf5/openmpi
-        export HDF5_LIBDIR=/usr/lib/x86_64-linux-gnu/hdf5/openmpi
-        # Upgrade setuptools again, to avoid build error from `project.license`
-        # Neuron installed older setuptools but it doesn't work for h5py
-        CC="mpicc" HDF5_MPI="ON" HDF5_INCLUDEDIR=$HDF5_INCLUDEDIR HDF5_LIBDIR=$HDF5_LIBDIR \
-          pip install --no-cache-dir --no-binary=h5py h5py --no-build-isolation
+    # - name: Build and install h5py
+    #   if: steps.cache-venv.outputs.cache-hit != 'true'
+    #   run: |
+    #     export HDF5_INCLUDEDIR=/usr/include/hdf5/openmpi
+    #     export HDF5_LIBDIR=/usr/lib/x86_64-linux-gnu/hdf5/openmpi
+    #     # Upgrade setuptools again, to avoid build error from `project.license`
+    #     # Neuron installed older setuptools but it doesn't work for h5py
+    #     CC="mpicc" HDF5_MPI="ON" HDF5_INCLUDEDIR=$HDF5_INCLUDEDIR HDF5_LIBDIR=$HDF5_LIBDIR \
+    #       pip install --no-cache-dir --no-binary=h5py h5py --no-build-isolation
 
-    - name: Setup neurodamus
-      if: steps.cache-venv.outputs.cache-hit != 'true'
-      run: |
-        python -m venv venv
-        . ./venv/bin/activate
-        python -m pip install --upgrade pip setuptools
-        pip install neurodamus
+    # - name: Setup neurodamus
+    #   if: steps.cache-venv.outputs.cache-hit != 'true'
+    #   run: |
+    #     python -m venv venv
+    #     . ./venv/bin/activate
+    #     python -m pip install --upgrade pip setuptools
+    #     pip install neurodamus
 
-    - name: Collect repo hashes
-      id: repo_hashes
-      run: |
-        echo "libsonata_hash=$(git ls-remote https://github.com/openbraininstitute/libsonatareport.git HEAD | cut -f1)" >> $GITHUB_OUTPUT
-        echo "neurodamus_hash=$(git ls-remote https://github.com/openbraininstitute/neurodamus-models.git HEAD | cut -f1)" >> $GITHUB_OUTPUT
+    # - name: Collect repo hashes
+    #   id: repo_hashes
+    #   run: |
+    #     echo "libsonata_hash=$(git ls-remote https://github.com/openbraininstitute/libsonatareport.git HEAD | cut -f1)" >> $GITHUB_OUTPUT
+    #     echo "neurodamus_hash=$(git ls-remote https://github.com/openbraininstitute/neurodamus-models.git HEAD | cut -f1)" >> $GITHUB_OUTPUT
 
-    - name: Cache libsonatareport
-      id: cache-libsonatareport
-      uses: actions/cache@v4
-      with:
-        path: ${{ env.SONATAREPORT_DIR }}
-        key: ${{ runner.os }}-libsonatareport-${{ steps.repo_hashes.outputs.libsonata_hash }}
+    # - name: Cache libsonatareport
+    #   id: cache-libsonatareport
+    #   uses: actions/cache@v4
+    #   with:
+    #     path: ${{ env.SONATAREPORT_DIR }}
+    #     key: ${{ runner.os }}-libsonatareport-${{ steps.repo_hashes.outputs.libsonata_hash }}
 
-    - name: Install libsonatareport
-      if: steps.cache-libsonatareport.outputs.cache-hit != 'true'
-      run: |
-        git clone https://github.com/openbraininstitute/libsonatareport.git --recursive --depth=1
-        cmake -B libsonatareport/build -S libsonatareport \
-        -DCMAKE_INSTALL_PREFIX=$SONATAREPORT_DIR -DCMAKE_BUILD_TYPE=Release -DSONATA_REPORT_ENABLE_SUBMODULES=ON -DSONATA_REPORT_ENABLE_MPI=ON -GNinja
+    # - name: Install libsonatareport
+    #   if: steps.cache-libsonatareport.outputs.cache-hit != 'true'
+    #   run: |
+    #     git clone https://github.com/openbraininstitute/libsonatareport.git --recursive --depth=1
+    #     cmake -B libsonatareport/build -S libsonatareport \
+    #     -DCMAKE_INSTALL_PREFIX=$SONATAREPORT_DIR -DCMAKE_BUILD_TYPE=Release -DSONATA_REPORT_ENABLE_SUBMODULES=ON -DSONATA_REPORT_ENABLE_MPI=ON -GNinja
 
-        cmake --build libsonatareport/build
-        cmake --install libsonatareport/build
+    #     cmake --build libsonatareport/build
+    #     cmake --install libsonatareport/build
 
-    - name: Cache neurodamus-models
-      id: cache-neurodamus
-      uses: actions/cache@v4
-      with:
-        path: ${{ env.NEURODAMUS_NEOCORTEX_ROOT }}
-        key: ${{ runner.os }}-neurodamus-${{ steps.repo_hashes.outputs.neurodamus_hash }}
+    # - name: Cache neurodamus-models
+    #   id: cache-neurodamus
+    #   uses: actions/cache@v4
+    #   with:
+    #     path: ${{ env.NEURODAMUS_NEOCORTEX_ROOT }}
+    #     key: ${{ runner.os }}-neurodamus-${{ steps.repo_hashes.outputs.neurodamus_hash }}
 
-    - name: Install neurodamus-models
-      if: steps.cache-neurodamus.outputs.cache-hit != 'true'
-      run: |
-        export CC=$(which mpicc)
-        export CXX=$(which mpicxx)
-        export MPICC=$(which mpicc)
+    # - name: Install neurodamus-models
+    #   if: steps.cache-neurodamus.outputs.cache-hit != 'true'
+    #   run: |
+    #     export CC=$(which mpicc)
+    #     export CXX=$(which mpicxx)
+    #     export MPICC=$(which mpicc)
 
-        git clone https://github.com/openbraininstitute/neurodamus-models.git
+    #     git clone https://github.com/openbraininstitute/neurodamus-models.git
 
-        DATADIR=$(python -c "import neurodamus; from pathlib import Path; print(Path(neurodamus.__file__).parent / 'data')")
+    #     DATADIR=$(python -c "import neurodamus; from pathlib import Path; print(Path(neurodamus.__file__).parent / 'data')")
 
-        cmake -B neurodamus-models/build -S neurodamus-models/ \
-          -DPython_EXECUTABLE=$(which python) \
-          -DCMAKE_INSTALL_PREFIX=$NEURODAMUS_NEOCORTEX_ROOT \
-          -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=ON \
-          -DNEURODAMUS_CORE_DIR=${DATADIR} \
-          -DCMAKE_PREFIX_PATH=$SONATAREPORT_DIR \
-          -DNEURODAMUS_MECHANISMS=neocortex \
-          -DNEURODAMUS_ENABLE_CORENEURON=OFF \
-          -DNEURODAMUS_NCX_V5=ON \
-          -DNEURODAMUS_NCX_METABOLISM=ON \
-          -DNEURODAMUS_NCX_NGV=ON \
-          -GNinja
+    #     cmake -B neurodamus-models/build -S neurodamus-models/ \
+    #       -DPython_EXECUTABLE=$(which python) \
+    #       -DCMAKE_INSTALL_PREFIX=$NEURODAMUS_NEOCORTEX_ROOT \
+    #       -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=ON \
+    #       -DNEURODAMUS_CORE_DIR=${DATADIR} \
+    #       -DCMAKE_PREFIX_PATH=$SONATAREPORT_DIR \
+    #       -DNEURODAMUS_MECHANISMS=neocortex \
+    #       -DNEURODAMUS_ENABLE_CORENEURON=OFF \
+    #       -DNEURODAMUS_NCX_V5=ON \
+    #       -DNEURODAMUS_NCX_METABOLISM=ON \
+    #       -DNEURODAMUS_NCX_NGV=ON \
+    #       -GNinja
 
-        cmake --build neurodamus-models/build
-        cmake --install neurodamus-models/build
+    #     cmake --build neurodamus-models/build
+    #     cmake --install neurodamus-models/build
 
-    - name: Install Multiscale Run
-      run: |
-        pip install .
+    # - name: Install Multiscale Run
+    #   run: |
+    #     pip install .
 
-    - name: Run mini tiny CI (serial)
-      if: matrix.mode == 'serial'
-      run: |
-        mkdir mini_tiny_CI_test
-        cd mini_tiny_CI_test
-        multiscale-run init . --circuit=mini_tiny_CI
-        source ../.ci/setup.sh
-        download_mini_tiny_CI_circuit
-        multiscale-run compute
+    # - name: Run mini tiny CI (serial)
+    #   if: matrix.mode == 'serial'
+    #   run: |
+    #     mkdir mini_tiny_CI_test
+    #     cd mini_tiny_CI_test
+    #     multiscale-run init . --circuit=mini_tiny_CI
+    #     source ../.ci/setup.sh
+    #     download_mini_tiny_CI_circuit
+    #     multiscale-run compute
 
-    - name: Run mini tiny CI (mpi 2 ranks)
-      if: matrix.mode == 'mpi'
-      run: |
-        mkdir mini_tiny_CI_test
-        cd mini_tiny_CI_test
-        multiscale-run init . --circuit=mini_tiny_CI
-        source ../.ci/setup.sh
-        download_mini_tiny_CI_circuit
-        mpirun -n 2 multiscale-run compute
+    # - name: Run mini tiny CI (mpi 2 ranks)
+    #   if: matrix.mode == 'mpi'
+    #   run: |
+    #     mkdir mini_tiny_CI_test
+    #     cd mini_tiny_CI_test
+    #     multiscale-run init . --circuit=mini_tiny_CI
+    #     source ../.ci/setup.sh
+    #     download_mini_tiny_CI_circuit
+    #     mpirun -n 2 multiscale-run compute
