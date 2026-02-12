@@ -23,10 +23,10 @@ jobs:
           mpirun -np 2 bash -c 'echo "Hello from rank $PMI_RANK of $PMI_SIZE"'
 
 
-      # - name: Compile and run MPI test
-      #   run: |
-      #     mpicxx mpi_test.cpp -o mpi_test
-      #     mpirun -np 2 ./mpi_test
+      - name: Compile and run MPI test
+        run: |
+          mpicxx mpi_test.cpp -o mpi_test
+          mpirun -np 2 ./mpi_test
 
 
       # - name: Setup Python 3.11
