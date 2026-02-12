@@ -25,7 +25,7 @@ jobs:
     - name: Install ubuntu system dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y libopenmpi-dev openmpi-bin openmpi-common hdf5-tools flex libfl-dev bison ninja-build libreadline-dev
+        sudo apt-get install -y libopenmpi-dev openmpi-bin openmpi-common libhdf5-mpi-dev hdf5-tools flex libfl-dev bison ninja-build libreadline-dev
 
     - name: Setup python 3.11
       uses: actions/setup-python@v4
@@ -61,8 +61,8 @@ jobs:
     - name: Build and install h5py
       if: steps.cache-venv.outputs.cache-hit != 'true'
       run: |
-        export HDF5_INCLUDEDIR=/usr/include/hdf5/mpich
-        export HDF5_LIBDIR=/usr/lib/x86_64-linux-gnu/hdf5/mpich
+        export HDF5_INCLUDEDIR=/usr/include/hdf5/mpio
+        export HDF5_LIBDIR=/usr/lib/x86_64-linux-gnu/hdf5/mpio
         # Upgrade setuptools again, to avoid build error from `project.license`
         # Neuron installed older setuptools but it doesn't work for h5py
         CC="mpicc" HDF5_MPI="ON" HDF5_INCLUDEDIR=$HDF5_INCLUDEDIR HDF5_LIBDIR=$HDF5_LIBDIR \

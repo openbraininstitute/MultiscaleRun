@@ -15,7 +15,7 @@
 #     - name: Install ubuntu system dependencies
 #       run: |
 #         sudo apt-get update
-#         sudo apt-get install -y mpich libmpich-dev libhdf5-mpich-dev hdf5-tools flex libfl-dev bison ninja-build libreadline-dev
+#         sudo apt-get install -y libopenmpi-dev openmpi-bin openmpi-common hdf5-tools flex libfl-dev bison ninja-build libreadline-dev
 
 #     - name: Setup python 3.11
 #       uses: actions/setup-python@v4
