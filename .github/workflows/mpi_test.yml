@@ -15,18 +15,13 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y mpich libmpich-dev hdf5-tools
 
-      - name: Check mpich installation
-        run: |
-          which mpicc
-          which mpirun
-          mpicc -v
-          mpirun -np 2 bash -c 'echo "Hello from rank $PMI_RANK of $PMI_SIZE"'
-
 
       - name: Compile and run MPI test
         run: |
+          type mpiexec
+          mpiexec --version
           mpicxx mpi_test.cpp -o mpi_test
-          mpirun -np 2 ./mpi_test
+          mpiexec -np 2 ./mpi_test
 
 
       # - name: Setup Python 3.11
