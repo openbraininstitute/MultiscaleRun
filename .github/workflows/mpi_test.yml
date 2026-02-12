@@ -29,8 +29,12 @@ jobs:
           ls -l /usr/bin/mpirun
           echo "----"
 
-          readlink -f /etc/alternatives/mpicxx
-          readlink -f /etc/alternatives/mpiexec
+          ls -l /etc/alternatives/mpicxx
+          ls -l /etc/alternatives/mpiexec
+          ls -l /usr/bin/mpicxx.mpich
+          ls -l /usr/bin/mpiexec.hydra
+
+          echo "----"
 
           mpicc -show
           mpiexec --version
