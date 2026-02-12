@@ -40,4 +40,4 @@ jobs:
             -env PATH "$PATH" \
             -env LD_LIBRARY_PATH "$LD_LIBRARY_PATH" \
             -env VIRTUAL_ENV "$VIRTUAL_ENV" \
-            python mpi_test.py
+            ${{ github.workspace }}/venv/bin/python mpi_test.py
