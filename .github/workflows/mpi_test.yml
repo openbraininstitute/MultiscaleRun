@@ -15,29 +15,42 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y mpich libmpich-dev hdf5-tools
 
-      - name: Setup Python 3.11
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.11"
-
-      - name: Create venv and install mpi4py
+      - name: Check mpich installation
         run: |
-          python -m venv venv
-          . venv/bin/activate
-          python -m pip install --upgrade pip setuptools wheel
-          # compile mpi4py with the system mpicc
-          MPICC=/usr/bin/mpicc pip install --no-binary=mpi4py mpi4py
+          which mpicc
+          which mpirun
+          mpicc -v
+          mpirun -V
 
-      - name: Activate venv
+      - name: Compile and run MPI test
         run: |
-          echo "${{ github.workspace }}/venv/bin" >> $GITHUB_PATH
-          echo "VIRTUAL_ENV=${{ github.workspace }}/venv" >> $GITHUB_ENV
+          mpicxx mpi_test.cpp -o mpi_test
+          mpirun -np 2 ./mpi_test
 
-      - name: Run MPI test
-        run: |
-          which python
-          mpirun -np 2 \
-            -env PATH "$PATH" \
-            -env LD_LIBRARY_PATH "$LD_LIBRARY_PATH" \
-            -env VIRTUAL_ENV "$VIRTUAL_ENV" \
-            ${{ github.workspace }}/venv/bin/python mpi_test.py
+
+      # - name: Setup Python 3.11
+      #   uses: actions/setup-python@v4
+      #   with:
+      #     python-version: "3.11"
+
+      # - name: Create venv and install mpi4py
+      #   run: |
+      #     python -m venv venv
+      #     . venv/bin/activate
+      #     python -m pip install --upgrade pip setuptools wheel
+      #     # compile mpi4py with the system mpicc
+      #     MPICC=/usr/bin/mpicc pip install --no-binary=mpi4py mpi4py
+
+      # - name: Activate venv
+      #   run: |
+      #     echo "${{ github.workspace }}/venv/bin" >> $GITHUB_PATH
+      #     echo "VIRTUAL_ENV=${{ github.workspace }}/venv" >> $GITHUB_ENV
+
+      # - name: Run MPI test
+      #   run: |
+      #     which python
+      #     mpirun -np 2 \
+      #       -env PATH "$PATH" \
+      #       -env LD_LIBRARY_PATH "$LD_LIBRARY_PATH" \
+      #       -env VIRTUAL_ENV "$VIRTUAL_ENV" \
+      #       ${{ github.workspace }}/venv/bin/python mpi_test.py
