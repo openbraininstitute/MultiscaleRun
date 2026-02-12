@@ -30,10 +30,10 @@ jobs:
           echo "----"
           mpiexec --version
           mpicxx mpi_test.cpp -o mpi_test
-          mpiexec -np 2 ./mpi_test
+          mpiexec --launcher fork -np 2 ./mpi_test
           echo "----"
           mpicc mpi_test.c -o mpi_test_c
-          mpirun -np 2 ./mpi_test_c
+          mpirun --launcher fork -np 2 ./mpi_test_c
 
 
       # - name: Setup Python 3.11
