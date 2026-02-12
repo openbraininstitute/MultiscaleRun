@@ -1,7 +1,6 @@
 name: MPI venv test
 
 on:
-  push:
   pull_request:
 
 jobs:
@@ -37,5 +36,8 @@ jobs:
       - name: Run MPI test
         run: |
           which python
-          # ensure we use venv python
-          mpirun -np 2 python mpi_test.py
+          mpirun -np 2 \
+            -env PATH "$PATH" \
+            -env LD_LIBRARY_PATH "$LD_LIBRARY_PATH" \
+            -env VIRTUAL_ENV "$VIRTUAL_ENV" \
+            python mpi_test.py
