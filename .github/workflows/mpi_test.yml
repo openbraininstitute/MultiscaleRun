@@ -29,10 +29,10 @@ jobs:
           ls -l /usr/bin/mpirun
           echo "----"
 
-          ls -l /etc/alternatives/mpicxx
-          ls -l /etc/alternatives/mpiexec
-          ls -l /usr/bin/mpicxx.mpich
-          ls -l /usr/bin/mpiexec.hydra
+          readlink -f /usr/bin/mpicc
+          readlink -f /usr/bin/mpicxx
+          readlink -f /usr/bin/mpirun
+          readlink -f /usr/bin/mpiexec
 
           echo "----"
 
@@ -43,6 +43,8 @@ jobs:
           mpiexec --version
           mpicxx mpi_test.cpp -o mpi_test
           mpiexec --launcher fork -np 2 ./mpi_test
+
+          ldd mpi_test
           echo "----"
           mpicc mpi_test.c -o mpi_test_c
           mpirun --launcher fork -np 2 ./mpi_test_c
