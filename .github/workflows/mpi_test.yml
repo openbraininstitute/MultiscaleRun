@@ -10,11 +10,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install system dependencies
+      - name: Install OpenMPI
         run: |
           sudo apt-get update
-          sudo apt-get install -y mpich libmpich-dev hdf5-tools
-
+          sudo apt-get install -y libopenmpi-dev openmpi-bin openmpi-common
 
       - name: Compile and run MPI test
         run: |
@@ -42,7 +41,7 @@ jobs:
           echo "----"
           mpiexec --version
           mpicxx mpi_test.cpp -o mpi_test
-          mpiexec --launcher fork -np 2 ./mpi_test
+          mpiexec -np 2 ./mpi_test
 
           ldd mpi_test
           echo "----"
