@@ -29,9 +29,8 @@ jobs:
           ls -l /usr/bin/mpirun
           echo "----"
 
-          readlink -f /usr/bin/mpicc
-          readlink -f /usr/bin/mpicxx
-          readlink -f /usr/bin/mpiexec
+          readlink -f /etc/alternatives/mpicxx
+          readlink -f /etc/alternatives/mpiexec
 
           mpicc -show
           mpiexec --version
