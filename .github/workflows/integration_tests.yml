@@ -55,7 +55,17 @@ jobs:
     - name: Build and install mpi4py
       if: steps.cache-venv.outputs.cache-hit != 'true'
       run: |
-        MPICC=mpicc pip install --no-binary=mpi4py mpi4py
+        export MPICC=$(which mpicc)
+        pip install --no-binary=mpi4py mpi4py
+
+    - name: MPI smoke test (collective)
+      run: |
+        mpirun -n 2 python - << 'EOF'
+        from mpi4py import MPI
+        comm = MPI.COMM_WORLD
+        total = comm.allreduce(1, op=MPI.SUM)
+        assert total == 2
+        EOF
     
     - name: Build and install h5py
       if: steps.cache-venv.outputs.cache-hit != 'true'
@@ -146,7 +156,7 @@ jobs:
         download_mini_tiny_CI_circuit
         multiscale-run compute
 
-    - name: MPI smoke test (collective)
+    - name: MPI smoke test (collective) 2
       run: |
         mpirun -n 2 python - << 'EOF'
         from mpi4py import MPI
