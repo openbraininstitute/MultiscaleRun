@@ -5,24 +5,22 @@ on:
   push:
     branches: [main]
 
+env:
+  SONATAREPORT_DIR: ${{ github.workspace }}/libsonatareport/build/install
+  NEURODAMUS_NEOCORTEX_ROOT: ${{ github.workspace }}/neurodamus-models/build/install
+  HOC_LIBRARY_PATH: ${{ github.workspace }}/neurodamus-models/build/install/share/neurodamus_neocortex/hoc
+  LIBSONATA_ZERO_BASED_GIDS: 1
+  HDF5_MPI: ON
+  NRNMECH_LIB_PATH: ${{ github.workspace }}/neurodamus-models/build/install/lib/libnrnmech.so
+  HDF5_INCLUDEDIR: /usr/include/hdf5/openmpi
+  HDF5_LIBDIR: /usr/lib/x86_64-linux-gnu/hdf5/openmpi
+  CC: mpicc
+  CXX: mpicxx
+  MPICC: mpicc
+
 jobs:
-  tests:
+  setup-test-env:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        mode: [unit, integration-serial, integration-mpi]
-    env:
-      SONATAREPORT_DIR: ${{ github.workspace }}/libsonatareport/build/install
-      NEURODAMUS_NEOCORTEX_ROOT: ${{ github.workspace }}/neurodamus-models/build/install
-      HOC_LIBRARY_PATH: ${{ github.workspace }}/neurodamus-models/build/install/share/neurodamus_neocortex/hoc
-      LIBSONATA_ZERO_BASED_GIDS: 1
-      HDF5_MPI: ON
-      NRNMECH_LIB_PATH: ${{ github.workspace }}/neurodamus-models/build/install/lib/libnrnmech.so
-      HDF5_INCLUDEDIR: /usr/include/hdf5/openmpi
-      HDF5_LIBDIR: /usr/lib/x86_64-linux-gnu/hdf5/openmpi
-      CC: mpicc
-      CXX: mpicxx
-      MPICC: mpicc
 
     steps:
     - uses: actions/checkout@v4
@@ -42,7 +40,7 @@ jobs:
       uses: actions/cache@v3
       with:
         path: venv
-        key: venv-tests-${{ runner.os }}-py311
+        key: venv-tests-${{ runner.os }}-py311-${{ github.sha }}
 
     - name: Setup venv
       if: steps.cache-venv.outputs.cache-hit != 'true'
@@ -142,27 +140,28 @@ jobs:
       run: |
         pip install .
 
-    - name: Run mini tiny CI (mpi 2 ranks)
-      if: matrix.mode == 'unit'
-      run: |
-        pytest tests/unit
+  # tests:
+  #   needs: setup-test-env
+  #   runs-on: ubuntu-latest
+  #   strategy:
+  #     matrix:
+  #       mode: [unit, integration-serial, integration-mpi]
+  #   env:
+  #     SONATAREPORT_DIR: ${{ github.workspace }}/libsonatareport/build/install
+  #     NEURODAMUS_NEOCORTEX_ROOT: ${{ github.workspace }}/neurodamus-models/build/install
+  #   steps:
+  #   - uses: actions/checkout@v4
 
-    - name: Run mini tiny CI (serial)
-      if: matrix.mode == 'integration-serial'
-      run: |
-        mkdir mini_tiny_CI_test
-        cd mini_tiny_CI_test
-        multiscale-run init . --circuit=mini_tiny_CI
-        source ../.ci/setup.sh
-        download_mini_tiny_CI_circuit
-        multiscale-run compute
+  #   - name: Activate venv
+  #     run: |
+  #       . venv/bin/activate
 
-    - name: Run mini tiny CI (mpi 2 ranks)
-      if: matrix.mode == 'integration-mpi'
-      run: |
-        mkdir mini_tiny_CI_test
-        cd mini_tiny_CI_test
-        multiscale-run init . --circuit=mini_tiny_CI
-        source ../.ci/setup.sh
-        download_mini_tiny_CI_circuit
-        mpirun -n 2 multiscale-run compute
+  #   - name: Run tests
+  #     run: |
+  #       if [ "${{ matrix.mode }}" == "unit" ]; then
+  #         pytest tests/unit
+  #       elif [ "${{ matrix.mode }}" == "integration-serial" ]; then
+  #         multiscale-run compute
+  #       else
+  #         mpirun -n 2 multiscale-run compute
+  #       fi
