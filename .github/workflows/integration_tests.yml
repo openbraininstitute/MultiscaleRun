@@ -53,7 +53,7 @@ jobs:
         pip install NEURON-nightly morphio cython
 
     - name: Activate venv and set env vars
-      id: activate_venv
+      id: venv_and_hashes
       run: |
         # Compute variables
         VENV_PATH="${{ github.workspace }}/venv"
@@ -90,7 +90,7 @@ jobs:
       uses: actions/cache@v4
       with:
         path: ${{ env.SONATAREPORT_DIR }}
-        key: ${{ runner.os }}-libsonatareport-${{ steps.repo_hashes.outputs.libsonata_hash }}
+        key: ${{ runner.os }}-libsonatareport-${{ steps.venv_and_hashes.outputs.libsonata_hash }}
 
     - name: Install libsonatareport
       if: steps.cache-libsonatareport.outputs.cache-hit != 'true'
