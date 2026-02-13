@@ -179,3 +179,4 @@ jobs:
       - name: Run integration tests (MPI)
         if: matrix.mode == 'integration-mpi'
         run: mpirun -n 2 multiscale-run compute
+        
