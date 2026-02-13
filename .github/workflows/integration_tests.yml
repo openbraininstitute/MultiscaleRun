@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        mode: [serial, mpi]
+        mode: [mpi]
     env:
       SONATAREPORT_DIR: ${{ github.workspace }}/libsonatareport/build/install
       NEURODAMUS_NEOCORTEX_ROOT: ${{ github.workspace }}/neurodamus-models/build/install
