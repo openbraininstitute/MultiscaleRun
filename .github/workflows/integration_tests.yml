@@ -73,51 +73,35 @@ jobs:
         echo "libsonata_hash=$LIBSONATA_HASH" >> $GITHUB_OUTPUT
         echo "neurodamus_hash=$NEURODAMUS_HASH" >> $GITHUB_OUTPUT
 
-    - name: Check hash values
+    - name: Build and install mpi4py
+      if: steps.cache-venv.outputs.cache-hit != 'true'
       run: |
-        echo "Libsonata hash from previous step: ${{ steps.activate_venv.outputs.libsonata_hash }}"
-        echo "Neurodamus hash from previous step: ${{ steps.activate_venv.outputs.neurodamus_hash }}"
-
-        # Optional: fail if hashes are empty
-        if [ -z "${{ steps.activate_venv.outputs.libsonata_hash }}" ]; then
-          echo "Error: libsonata_hash is empty"
-          exit 1
-        fi
-        if [ -z "${{ steps.activate_venv.outputs.neurodamus_hash }}" ]; then
-          echo "Error: neurodamus_hash is empty"
-          exit 1
-        fi
-
-
-    # - name: Build and install mpi4py
-    #   if: steps.cache-venv.outputs.cache-hit != 'true'
-    #   run: |
-    #     pip install --no-binary=mpi4py mpi4py
+        pip install --no-binary=mpi4py mpi4py
     
-    # - name: Build and install h5py
-    #   if: steps.cache-venv.outputs.cache-hit != 'true'
-    #   run: |
-    #     # Upgrade setuptools again, to avoid build error from `project.license`
-    #     # Neuron installed older setuptools but it doesn't work for h5py
-    #     pip install --no-cache-dir --no-binary=h5py h5py --no-build-isolation
+    - name: Build and install h5py
+      if: steps.cache-venv.outputs.cache-hit != 'true'
+      run: |
+        # Upgrade setuptools again, to avoid build error from `project.license`
+        # Neuron installed older setuptools but it doesn't work for h5py
+        pip install --no-cache-dir --no-binary=h5py h5py --no-build-isolation
 
-    # - name: Cache libsonatareport
-    #   id: cache-libsonatareport
-    #   uses: actions/cache@v4
-    #   with:
-    #     path: ${{ env.SONATAREPORT_DIR }}
-    #     key: ${{ runner.os }}-libsonatareport-${{ steps.repo_hashes.outputs.libsonata_hash }}
+    - name: Cache libsonatareport
+      id: cache-libsonatareport
+      uses: actions/cache@v4
+      with:
+        path: ${{ env.SONATAREPORT_DIR }}
+        key: ${{ runner.os }}-libsonatareport-${{ steps.repo_hashes.outputs.libsonata_hash }}
 
-    # - name: Install libsonatareport
-    #   if: steps.cache-libsonatareport.outputs.cache-hit != 'true'
-    #   run: |
-    #     git clone https://github.com/openbraininstitute/libsonatareport.git --recursive --depth=1
-    #     cmake -B libsonatareport/build -S libsonatareport \
-    #     -DCMAKE_CXX_COMPILER=mpicxx \
-    #     -DCMAKE_INSTALL_PREFIX=$SONATAREPORT_DIR -DCMAKE_BUILD_TYPE=Release -DSONATA_REPORT_ENABLE_SUBMODULES=ON -DSONATA_REPORT_ENABLE_MPI=ON -GNinja
+    - name: Install libsonatareport
+      if: steps.cache-libsonatareport.outputs.cache-hit != 'true'
+      run: |
+        git clone https://github.com/openbraininstitute/libsonatareport.git --recursive --depth=1
+        cmake -B libsonatareport/build -S libsonatareport \
+        -DCMAKE_CXX_COMPILER=mpicxx \
+        -DCMAKE_INSTALL_PREFIX=$SONATAREPORT_DIR -DCMAKE_BUILD_TYPE=Release -DSONATA_REPORT_ENABLE_SUBMODULES=ON -DSONATA_REPORT_ENABLE_MPI=ON -GNinja
 
-    #     cmake --build libsonatareport/build
-    #     cmake --install libsonatareport/build
+        cmake --build libsonatareport/build
+        cmake --install libsonatareport/build
 
     # - name: Setup neurodamus
     #   if: steps.cache-venv.outputs.cache-hit != 'true'
