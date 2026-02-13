@@ -147,13 +147,25 @@ jobs:
       if: matrix.mode == 'unit'
       run: pytest tests/unit
 
-    - name: Run integration tests (serial)
+    - name: Run mini tiny CI (serial)
       if: matrix.mode == 'integration-serial'
-      run: multiscale-run compute
+      run: |
+        mkdir mini_tiny_CI_test
+        cd mini_tiny_CI_test
+        multiscale-run init . --circuit=mini_tiny_CI
+        source ../.ci/setup.sh
+        download_mini_tiny_CI_circuit
+        multiscale-run compute
 
-    - name: Run integration tests (MPI)
+    - name: Run mini tiny CI (mpi 2 ranks)
       if: matrix.mode == 'integration-mpi'
-      run: mpirun -n 2 multiscale-run compute
+      run: |
+        mkdir mini_tiny_CI_test
+        cd mini_tiny_CI_test
+        multiscale-run init . --circuit=mini_tiny_CI
+        source ../.ci/setup.sh
+        download_mini_tiny_CI_circuit
+        mpirun -n 2 multiscale-run compute
 
 
 
