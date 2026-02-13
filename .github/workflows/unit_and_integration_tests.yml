@@ -1,4 +1,4 @@
-name: Integration tests
+name: Unit & Integration Tests
 
 on:
   pull_request:
@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        mode: [mpi]
+        mode: [unit, integration-serial, integration-mpi]
     env:
       SONATAREPORT_DIR: ${{ github.workspace }}/libsonatareport/build/install
       NEURODAMUS_NEOCORTEX_ROOT: ${{ github.workspace }}/neurodamus-models/build/install
@@ -113,7 +113,7 @@ jobs:
       uses: actions/cache@v4
       with:
         path: ${{ env.NEURODAMUS_NEOCORTEX_ROOT }}
-        key: ${{ runner.os }}-neurodamus-${{ steps.venv_and_hashes.outputs.neurodamus_hash }}
+        key: ${{ runner.os }}-neurodamus-models-${{ steps.venv_and_hashes.outputs.neurodamus_hash }}
 
     - name: Install neurodamus-models
       if: steps.cache-neurodamus-models.outputs.cache-hit != 'true'
@@ -142,8 +142,13 @@ jobs:
       run: |
         pip install .
 
+    - name: Run mini tiny CI (mpi 2 ranks)
+      if: matrix.mode == 'unit'
+      run: |
+        pytest tests/unit
+
     - name: Run mini tiny CI (serial)
-      if: matrix.mode == 'serial'
+      if: matrix.mode == 'integration-serial'
       run: |
         mkdir mini_tiny_CI_test
         cd mini_tiny_CI_test
@@ -153,7 +158,7 @@ jobs:
         multiscale-run compute
 
     - name: Run mini tiny CI (mpi 2 ranks)
-      if: matrix.mode == 'mpi'
+      if: matrix.mode == 'integration-mpi'
       run: |
         mkdir mini_tiny_CI_test
         cd mini_tiny_CI_test
