@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        mode: [mpi]
+        mode: [serial, mpi]
     env:
       SONATAREPORT_DIR: ${{ github.workspace }}/libsonatareport/build/install
       NEURODAMUS_NEOCORTEX_ROOT: ${{ github.workspace }}/neurodamus-models/build/install
@@ -18,6 +18,11 @@ jobs:
       LIBSONATA_ZERO_BASED_GIDS: 1
       HDF5_MPI: ON
       NRNMECH_LIB_PATH: ${{ github.workspace }}/neurodamus-models/build/install/lib/libnrnmech.so
+      HDF5_INCLUDEDIR: /usr/include/hdf5/openmpi
+      HDF5_LIBDIR: /usr/lib/x86_64-linux-gnu/hdf5/openmpi
+      CC: mpicc
+      CXX: mpicxx
+      MPICC: mpicc
 
     steps:
     - uses: actions/checkout@v4
@@ -26,24 +31,6 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y libopenmpi-dev openmpi-bin openmpi-common libhdf5-mpi-dev hdf5-tools flex libfl-dev bison ninja-build libreadline-dev
-    
-    - name: Check MPI HDF5 installation
-      run: |
-        echo "Which mpicc/mpirun/mpicxx/mpiexec:"
-        which mpicc
-        which mpicxx
-        which mpirun
-        which mpiexec
-
-        echo "Find parallel HDF5 headers:"
-        dpkg -L libhdf5-mpi-dev | grep hdf5.h || true
-
-        echo "Find parallel HDF5 libs:"
-        dpkg -L libhdf5-mpi-dev | grep libhdf5 || true
-
-        echo "Verify parallel HDF5 linkage:"
-        ldd /usr/lib/x86_64-linux-gnu/hdf5/openmpi/libhdf5.so 2>/dev/null | grep mpi || echo "Not linked to MPI"
-
 
     - name: Setup python 3.11
       uses: actions/setup-python@v4
@@ -69,36 +56,20 @@ jobs:
       run: |
         echo "${{ github.workspace }}/venv/bin" >> $GITHUB_PATH
         echo "VIRTUAL_ENV=${{ github.workspace }}/venv" >> $GITHUB_ENV
+        echo "libsonata_hash=$(git ls-remote https://github.com/openbraininstitute/libsonatareport.git HEAD | cut -f1)" >> $GITHUB_OUTPUT
+        echo "neurodamus_hash=$(git ls-remote https://github.com/openbraininstitute/neurodamus-models.git HEAD | cut -f1)" >> $GITHUB_OUTPUT
 
     - name: Build and install mpi4py
       if: steps.cache-venv.outputs.cache-hit != 'true'
       run: |
-        export MPICC=$(which mpicc)
         pip install --no-binary=mpi4py mpi4py
     
     - name: Build and install h5py
       if: steps.cache-venv.outputs.cache-hit != 'true'
       run: |
-        export HDF5_INCLUDEDIR=/usr/include/hdf5/openmpi
-        export HDF5_LIBDIR=/usr/lib/x86_64-linux-gnu/hdf5/openmpi
         # Upgrade setuptools again, to avoid build error from `project.license`
         # Neuron installed older setuptools but it doesn't work for h5py
-        CC="mpicc" HDF5_MPI="ON" HDF5_INCLUDEDIR=$HDF5_INCLUDEDIR HDF5_LIBDIR=$HDF5_LIBDIR \
-          pip install --no-cache-dir --no-binary=h5py h5py --no-build-isolation
-
-    - name: Setup neurodamus
-      if: steps.cache-venv.outputs.cache-hit != 'true'
-      run: |
-        python -m venv venv
-        . ./venv/bin/activate
-        python -m pip install --upgrade pip setuptools
-        pip install neurodamus
-
-    - name: Collect repo hashes
-      id: repo_hashes
-      run: |
-        echo "libsonata_hash=$(git ls-remote https://github.com/openbraininstitute/libsonatareport.git HEAD | cut -f1)" >> $GITHUB_OUTPUT
-        echo "neurodamus_hash=$(git ls-remote https://github.com/openbraininstitute/neurodamus-models.git HEAD | cut -f1)" >> $GITHUB_OUTPUT
+        pip install --no-cache-dir --no-binary=h5py h5py --no-build-isolation
 
     - name: Cache libsonatareport
       id: cache-libsonatareport
@@ -118,6 +89,11 @@ jobs:
         cmake --build libsonatareport/build
         cmake --install libsonatareport/build
 
+    - name: Setup neurodamus
+      if: steps.cache-venv.outputs.cache-hit != 'true'
+      run: |
+        pip install neurodamus
+
     - name: Cache neurodamus-models
       id: cache-neurodamus
       uses: actions/cache@v4
@@ -128,10 +104,6 @@ jobs:
     - name: Install neurodamus-models
       if: steps.cache-neurodamus.outputs.cache-hit != 'true'
       run: |
-        export CC=$(which mpicc)
-        export CXX=$(which mpicxx)
-        export MPICC=$(which mpicc)
-
         git clone https://github.com/openbraininstitute/neurodamus-models.git
 
         DATADIR=$(python -c "import neurodamus; from pathlib import Path; print(Path(neurodamus.__file__).parent / 'data')")
