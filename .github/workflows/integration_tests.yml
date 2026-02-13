@@ -73,6 +73,21 @@ jobs:
         echo "libsonata_hash=$LIBSONATA_HASH" >> $GITHUB_OUTPUT
         echo "neurodamus_hash=$NEURODAMUS_HASH" >> $GITHUB_OUTPUT
 
+    - name: Check hash values
+      run: |
+        echo "Libsonata hash from previous step: ${{ steps.activate_venv.outputs.libsonata_hash }}"
+        echo "Neurodamus hash from previous step: ${{ steps.activate_venv.outputs.neurodamus_hash }}"
+
+        # Optional: fail if hashes are empty
+        if [ -z "${{ steps.activate_venv.outputs.libsonata_hash }}" ]; then
+          echo "Error: libsonata_hash is empty"
+          exit 1
+        fi
+        if [ -z "${{ steps.activate_venv.outputs.neurodamus_hash }}" ]; then
+          echo "Error: neurodamus_hash is empty"
+          exit 1
+        fi
+
 
     # - name: Build and install mpi4py
     #   if: steps.cache-venv.outputs.cache-hit != 'true'
