@@ -57,19 +57,19 @@ jobs:
         VENV_PATH="${{ github.workspace }}/venv"
         PATH_ENTRY="$VENV_PATH/bin"
         LIBSONATA_HASH=$(git ls-remote https://github.com/openbraininstitute/libsonatareport.git HEAD | cut -f1)
-        NEURODAMUS_HASH=$(git ls-remote https://github.com/openbraininstitute/neurodamus-models.git HEAD | cut -f1)
+        NEURODAMUS_MODELS_HASH=$(git ls-remote https://github.com/openbraininstitute/neurodamus-models.git HEAD | cut -f1)
 
         # Print values so you see them in CI logs
         echo "VENV_PATH = $VENV_PATH"
         echo "PATH entry = $PATH_ENTRY"
         echo "libsonata_hash = $LIBSONATA_HASH"
-        echo "neurodamus_hash = $NEURODAMUS_HASH"
+        echo "neurodamus_models_hash = $NEURODAMUS_MODELS_HASH"
 
         # Persist for later steps
         echo "$PATH_ENTRY" >> $GITHUB_PATH
         echo "VIRTUAL_ENV=$VENV_PATH" >> $GITHUB_ENV
         echo "libsonata_hash=$LIBSONATA_HASH" >> $GITHUB_OUTPUT
-        echo "neurodamus_hash=$NEURODAMUS_HASH" >> $GITHUB_OUTPUT
+        echo "neurodamus_models_hash=$NEURODAMUS_MODELS_HASH" >> $GITHUB_OUTPUT
 
     - name: Build and install mpi4py
       if: steps.cache-venv.outputs.cache-hit != 'true'
@@ -111,7 +111,7 @@ jobs:
       uses: actions/cache@v4
       with:
         path: ${{ env.NEURODAMUS_NEOCORTEX_ROOT }}
-        key: ${{ runner.os }}-neurodamus-models-${{ steps.venv_and_hashes.outputs.neurodamus_hash }}
+        key: ${{ runner.os }}-neurodamus-models-${{ steps.venv_and_hashes.outputs.neurodamus_models_hash }}
 
     - name: Install neurodamus-models
       if: steps.cache-neurodamus-models.outputs.cache-hit != 'true'
