@@ -19,7 +19,7 @@ env:
   MPICC: mpicc
 
 jobs:
-  setup-test-env:
+  setup-env:
     runs-on: ubuntu-latest
 
     steps:
@@ -140,28 +140,42 @@ jobs:
       run: |
         pip install .
 
-  # tests:
-  #   needs: setup-test-env
-  #   runs-on: ubuntu-latest
-  #   strategy:
-  #     matrix:
-  #       mode: [unit, integration-serial, integration-mpi]
-  #   env:
-  #     SONATAREPORT_DIR: ${{ github.workspace }}/libsonatareport/build/install
-  #     NEURODAMUS_NEOCORTEX_ROOT: ${{ github.workspace }}/neurodamus-models/build/install
-  #   steps:
-  #   - uses: actions/checkout@v4
+    - name: Upload venv artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: venv-${{ github.sha }}
+        path: venv
 
-  #   - name: Activate venv
-  #     run: |
-  #       . venv/bin/activate
 
-  #   - name: Run tests
-  #     run: |
-  #       if [ "${{ matrix.mode }}" == "unit" ]; then
-  #         pytest tests/unit
-  #       elif [ "${{ matrix.mode }}" == "integration-serial" ]; then
-  #         multiscale-run compute
-  #       else
-  #         mpirun -n 2 multiscale-run compute
-  #       fi
+  tests:
+    needs: setup-env
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        mode: [unit, integration-serial, integration-mpi]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download venv artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: venv-${{ github.sha }}
+          path: venv
+
+      - name: Activate venv
+        id: venv
+        run: |
+          echo "${{ github.workspace }}/venv/bin" >> $GITHUB_PATH
+          echo "VIRTUAL_ENV=${{ github.workspace }}/venv" >> $GITHUB_ENV
+
+      - name: Run unit tests
+        if: matrix.mode == 'unit'
+        run: pytest tests/unit
+
+      - name: Run integration tests (serial)
+        if: matrix.mode == 'integration-serial'
+        run: multiscale-run compute
+
+      - name: Run integration tests (MPI)
+        if: matrix.mode == 'integration-mpi'
+        run: mpirun -n 2 multiscale-run compute
