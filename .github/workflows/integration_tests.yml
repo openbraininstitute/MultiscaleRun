@@ -50,7 +50,7 @@ jobs:
         python -m venv venv
         . ./venv/bin/activate
         python -m pip install --upgrade pip setuptools
-        pip install NEURON-nightly morphio cython pytests
+        pip install NEURON-nightly morphio cython pytest
 
     - name: Activate venv and set env vars
       id: venv_and_hashes
