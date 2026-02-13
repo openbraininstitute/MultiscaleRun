@@ -52,7 +52,7 @@ jobs:
         python -m pip install --upgrade pip setuptools
         pip install NEURON-nightly morphio cython
 
-    - name: Activate venv
+    - name: Activate venv and set env vars
       run: |
         echo "${{ github.workspace }}/venv/bin" >> $GITHUB_PATH
         echo "VIRTUAL_ENV=${{ github.workspace }}/venv" >> $GITHUB_ENV
