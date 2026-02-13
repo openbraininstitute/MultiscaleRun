@@ -40,7 +40,7 @@ jobs:
       uses: actions/cache@v3
       with:
         path: venv
-        key: venv-tests-${{ runner.os }}-py311-${{ github.sha }}
+        key: venv-tests-${{ runner.os }}-py311
 
     - name: Setup venv
       if: steps.cache-venv.outputs.cache-hit != 'true'
@@ -179,4 +179,3 @@ jobs:
       - name: Run integration tests (MPI)
         if: matrix.mode == 'integration-mpi'
         run: mpirun -n 2 multiscale-run compute
-        
