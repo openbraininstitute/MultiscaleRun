@@ -19,8 +19,11 @@ env:
   MPICC: mpicc
 
 jobs:
-  setup-env:
+  tests:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        mode: [unit, integration-serial, integration-mpi]
 
     steps:
     - uses: actions/checkout@v4
@@ -136,51 +139,21 @@ jobs:
         cmake --build neurodamus-models/build
         cmake --install neurodamus-models/build
 
-    - name: Upload venv artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: venv-${{ github.sha }}
-        path: venv
+    - name: Install Multiscale Run
+      run: |
+        pip install .
+
+    - name: Run unit tests
+      if: matrix.mode == 'unit'
+      run: pytest tests/unit
+
+    - name: Run integration tests (serial)
+      if: matrix.mode == 'integration-serial'
+      run: multiscale-run compute
+
+    - name: Run integration tests (MPI)
+      if: matrix.mode == 'integration-mpi'
+      run: mpirun -n 2 multiscale-run compute
 
 
-  tests:
-    needs: setup-env
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        mode: [unit, integration-serial, integration-mpi]
-    steps:
-      - uses: actions/checkout@v4
 
-      - name: Install ubuntu system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libopenmpi-dev openmpi-bin openmpi-common libhdf5-mpi-dev hdf5-tools flex libfl-dev bison ninja-build libreadline-dev
-
-      - name: Download venv artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: venv-${{ github.sha }}
-          path: venv
-
-      - name: Activate venv
-        id: venv
-        run: |
-          echo "${{ github.workspace }}/venv/bin" >> $GITHUB_PATH
-          echo "VIRTUAL_ENV=${{ github.workspace }}/venv" >> $GITHUB_ENV
-
-      - name: Install Multiscale Run
-        run: |
-          pip install .
-
-      - name: Run unit tests
-        if: matrix.mode == 'unit'
-        run: pytest tests/unit
-
-      - name: Run integration tests (serial)
-        if: matrix.mode == 'integration-serial'
-        run: multiscale-run compute
-
-      - name: Run integration tests (MPI)
-        if: matrix.mode == 'integration-mpi'
-        run: mpirun -n 2 multiscale-run compute
