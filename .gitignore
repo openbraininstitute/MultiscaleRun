@@ -95,6 +95,7 @@ cython_debug/
 
 # tests
 tiny_CI_test/
+mini_tiny_CI_test/
 
 # profiling
 prof/

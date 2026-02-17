@@ -1,0 +1,170 @@
+name: Unit & Integration Tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+env:
+  SONATAREPORT_DIR: ${{ github.workspace }}/libsonatareport/build/install
+  NEURODAMUS_NEOCORTEX_ROOT: ${{ github.workspace }}/neurodamus-models/build/install
+  HOC_LIBRARY_PATH: ${{ github.workspace }}/neurodamus-models/build/install/share/neurodamus_neocortex/hoc
+  LIBSONATA_ZERO_BASED_GIDS: 1
+  HDF5_MPI: ON
+  NRNMECH_LIB_PATH: ${{ github.workspace }}/neurodamus-models/build/install/lib/libnrnmech.so
+  HDF5_INCLUDEDIR: /usr/include/hdf5/openmpi
+  HDF5_LIBDIR: /usr/lib/x86_64-linux-gnu/hdf5/openmpi
+  CC: mpicc
+  CXX: mpicxx
+  MPICC: mpicc
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        mode: [unit, integration-serial, integration-mpi]
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install ubuntu system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libopenmpi-dev openmpi-bin openmpi-common libhdf5-mpi-dev hdf5-tools flex libfl-dev bison ninja-build libreadline-dev
+
+    - name: Setup python 3.11
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.11
+
+    - name: Cache python virtual env
+      id: cache-venv
+      uses: actions/cache@v3
+      with:
+        path: venv
+        key: venv-tests-${{ runner.os }}-py311-libsonata-report-${{ steps.venv_and_hashes.outputs.libsonata_hash }}-neurodamus-models-${{ steps.venv_and_hashes.outputs.neurodamus_models_hash }}
+
+    - name: Setup venv
+      if: steps.cache-venv.outputs.cache-hit != 'true'
+      run: |
+        python -m venv venv
+        . ./venv/bin/activate
+        python -m pip install --upgrade pip setuptools
+        pip install NEURON-nightly morphio cython pytest
+
+    - name: Activate venv and set env vars
+      id: venv_and_hashes
+      run: |
+        # Compute variables
+        VENV_PATH="${{ github.workspace }}/venv"
+        PATH_ENTRY="$VENV_PATH/bin"
+        LIBSONATA_HASH=$(git ls-remote https://github.com/openbraininstitute/libsonatareport.git HEAD | cut -f1)
+        NEURODAMUS_MODELS_HASH=$(git ls-remote https://github.com/openbraininstitute/neurodamus-models.git HEAD | cut -f1)
+
+        # Print values so you see them in CI logs
+        echo "VENV_PATH = $VENV_PATH"
+        echo "PATH entry = $PATH_ENTRY"
+        echo "libsonata_hash = $LIBSONATA_HASH"
+        echo "neurodamus_models_hash = $NEURODAMUS_MODELS_HASH"
+
+        # Persist for later steps
+        echo "$PATH_ENTRY" >> $GITHUB_PATH
+        echo "VIRTUAL_ENV=$VENV_PATH" >> $GITHUB_ENV
+        echo "libsonata_hash=$LIBSONATA_HASH" >> $GITHUB_OUTPUT
+        echo "neurodamus_models_hash=$NEURODAMUS_MODELS_HASH" >> $GITHUB_OUTPUT
+
+    - name: Build and install mpi4py
+      if: steps.cache-venv.outputs.cache-hit != 'true'
+      run: |
+        pip install --no-binary=mpi4py mpi4py
+    
+    - name: Build and install h5py
+      if: steps.cache-venv.outputs.cache-hit != 'true'
+      run: |
+        # Upgrade setuptools again, to avoid build error from `project.license`
+        # Neuron installed older setuptools but it doesn't work for h5py
+        pip install --no-cache-dir --no-binary=h5py h5py --no-build-isolation
+
+    - name: Cache libsonatareport
+      id: cache-libsonatareport
+      uses: actions/cache@v4
+      with:
+        path: ${{ env.SONATAREPORT_DIR }}
+        key: ${{ runner.os }}-libsonatareport-${{ steps.venv_and_hashes.outputs.libsonata_hash }}
+
+    - name: Install libsonatareport
+      if: steps.cache-libsonatareport.outputs.cache-hit != 'true'
+      run: |
+        git clone https://github.com/openbraininstitute/libsonatareport.git --recursive --depth=1
+        cmake -B libsonatareport/build -S libsonatareport \
+        -DCMAKE_CXX_COMPILER=mpicxx \
+        -DCMAKE_INSTALL_PREFIX=$SONATAREPORT_DIR -DCMAKE_BUILD_TYPE=Release -DSONATA_REPORT_ENABLE_SUBMODULES=ON -DSONATA_REPORT_ENABLE_MPI=ON -GNinja
+
+        cmake --build libsonatareport/build
+        cmake --install libsonatareport/build
+
+    - name: Setup neurodamus
+      if: steps.cache-venv.outputs.cache-hit != 'true'
+      run: |
+        pip install   neurodamus
+
+    - name: Cache neurodamus-models
+      id: cache-neurodamus-models
+      uses: actions/cache@v4
+      with:
+        path: ${{ env.NEURODAMUS_NEOCORTEX_ROOT }}
+        key: ${{ runner.os }}-neurodamus-models-${{ steps.venv_and_hashes.outputs.neurodamus_models_hash }}
+
+    - name: Install neurodamus-models
+      if: steps.cache-neurodamus-models.outputs.cache-hit != 'true'
+      run: |
+        git clone https://github.com/openbraininstitute/neurodamus-models.git
+
+        DATADIR=$(python -c "import neurodamus; from pathlib import Path; print(Path(neurodamus.__file__).parent / 'data')")
+
+        cmake -B neurodamus-models/build -S neurodamus-models/ \
+          -DPython_EXECUTABLE=$(which python) \
+          -DCMAKE_INSTALL_PREFIX=$NEURODAMUS_NEOCORTEX_ROOT \
+          -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=ON \
+          -DNEURODAMUS_CORE_DIR=${DATADIR} \
+          -DCMAKE_PREFIX_PATH=$SONATAREPORT_DIR \
+          -DNEURODAMUS_MECHANISMS=neocortex \
+          -DNEURODAMUS_ENABLE_CORENEURON=OFF \
+          -DNEURODAMUS_NCX_V5=ON \
+          -DNEURODAMUS_NCX_METABOLISM=ON \
+          -DNEURODAMUS_NCX_NGV=ON \
+          -GNinja
+
+        cmake --build neurodamus-models/build
+        cmake --install neurodamus-models/build
+
+    - name: Install Multiscale Run
+      run: |
+        pip install .
+
+    - name: Run unit tests
+      if: matrix.mode == 'unit'
+      run: pytest tests/unit
+
+    - name: Run mini tiny CI (serial)
+      if: matrix.mode == 'integration-serial'
+      run: |
+        mkdir mini_tiny_CI_test
+        cd mini_tiny_CI_test
+        multiscale-run init . --circuit=mini_tiny_CI
+        source ../.ci/setup.sh
+        download_mini_tiny_CI_circuit
+        multiscale-run compute
+
+    - name: Run mini tiny CI (mpi 2 ranks)
+      if: matrix.mode == 'integration-mpi'
+      run: |
+        mkdir mini_tiny_CI_test
+        cd mini_tiny_CI_test
+        multiscale-run init . --circuit=mini_tiny_CI
+        source ../.ci/setup.sh
+        download_mini_tiny_CI_circuit
+        mpirun -n 2 multiscale-run compute
+
+

@@ -1,6 +1,6 @@
 # !/usr/bin/env bash
 
-test_folder="tiny_CI_test"
+test_folder="mini_tiny_CI_test"
 
 # libsoantareport
 
@@ -39,10 +39,10 @@ fi
 # set new test
 
 if [ ! -d "$test_folder" ]; then
-  multiscale-run init "$test_folder" --circuit=tiny_CI
+  multiscale-run init "$test_folder" --circuit=mini_tiny_CI
   cd $test_folder
   source ../.ci/setup.sh
-  download_tiny_CI_neurodamus_data
+  download_mini_tiny_CI_circuit
   cd ..
 fi
 

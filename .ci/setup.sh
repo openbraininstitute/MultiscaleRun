@@ -25,3 +25,11 @@ download_tiny_CI_neurodamus_data() {
     wget -q "$url" -O "$filename"
     tar -xzf "$filename"
 }
+
+download_mini_tiny_CI_circuit() {
+    local filename="mini_tiny_CI_circuit.tar.gz"
+    local url="https://github.com/openbraininstitute/MultiscaleRun/releases/download/v0.9.0/${filename}"
+
+    wget -q "$url" -O "$filename"
+    tar -xzf "$filename"
+}

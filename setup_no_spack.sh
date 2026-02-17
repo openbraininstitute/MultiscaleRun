@@ -117,11 +117,3 @@ fi
 
 pip install -e .
 
-if [ ! -d "$test_folder" ]; then
-  multiscale-run init "$test_folder" --circuit=tiny_CI
-  cd $test_folder
-  source ../.ci/setup.sh
-  download_tiny_CI_neurodamus_data
-  cd ..
-fi
-
