@@ -114,9 +114,6 @@ The script does:
 - build `libsonatareport`
 - build the correct `neurodamus-models`
 - call `pip install -e .` for development
-- create the test folder `tiny_CI_test`
-- fill it with the necessary data
-
 
 If a folder is present (`libsonatareport`, `neurodamus-models`, `venv`) the script skips that installation step assuming that is already done. If any of the folders are missing, the script redoes the setup. 
 
@@ -142,11 +139,21 @@ ruff check --fix
 
 ### Integration Test
 
-You just need to go to `tiny_CI_test` and run. The simulation is too slow with just one core. I suggest at least 8 cores. Do not go above 90 for now as this leaves some cores without neurons (edge case that I did not check). 
+To explore the integration tests, we recommend starting with `mini_tiny_CI`. This is a small toy circuit containing 2 astrocytes and 9 neurons. It was specifically chosen because it exercises all the capabilities of MultiscaleRun while remaining simple enough for thorough inspection.
+
+The setup includes 2 astrocytes connected to several neuron-to-neuron edges, with one neuron-to-neuron edge linked to both astrocytes. This circuit was extracted from the `tiny_CI` circuit, which itself was derived from a rat circuit. The exact source circuit was lost during the migration from BBP to OBI. The full connection diagram is shown below:
+
+![mini_tiny_CI](multiscale_run/templates/mini_tiny_CI.png)
+
+To run the test, first execute `setup.sh` or `setup_no_spack.sh`, then, from the base repository folder:
 
 ```bash
-cd tiny_CI_test
-mpirun -np 12 multiscale-run compute
+mkdir mini_tiny_CI_test
+cd mini_tiny_CI_test
+multiscale-run init . --circuit=mini_tiny_CI
+source ../.ci/setup.sh
+download_mini_tiny_CI_circuit
+mpirun -n 2 multiscale-run compute
 ```
 
 #### Note
