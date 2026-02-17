@@ -107,7 +107,7 @@ jobs:
     - name: Setup neurodamus
       if: steps.cache-venv.outputs.cache-hit != 'true'
       run: |
-        pip install "libsonata==0.1.33" neurodamus
+        pip install neurodamus
 
     - name: Cache neurodamus-models
       id: cache-neurodamus-models
