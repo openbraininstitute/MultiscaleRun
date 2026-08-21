@@ -60,7 +60,7 @@ jobs:
         VENV_PATH="${{ github.workspace }}/venv"
         PATH_ENTRY="$VENV_PATH/bin"
         LIBSONATA_HASH=$(git ls-remote https://github.com/openbraininstitute/libsonatareport.git HEAD | cut -f1)
-        NEURODAMUS_MODELS_HASH=$(git ls-remote https://github.com/openbraininstitute/neurodamus-models.git HEAD | cut -f1)
+        NEURODAMUS_MODELS_HASH=$(git ls-remote https://github.com/openbraininstitute/neurodamus-models.git refs/tags/2.4.4 | cut -f1)
 
         # Print values so you see them in CI logs
         echo "VENV_PATH = $VENV_PATH"
@@ -124,10 +124,10 @@ jobs:
     - name: Install neurodamus-models
       if: steps.cache-neurodamus-models.outputs.cache-hit != 'true'
       run: |
-        git clone https://github.com/openbraininstitute/neurodamus-models.git
+        git clone --depth=1 --branch 2.4.4 https://github.com/openbraininstitute/neurodamus-models.git
 
         MOD_ENV=$(neurodamus-compile-mods \
-          --input-dir neurodamus-models/mod \
+          --input-dir neurodamus-models/neocortex/mod/metabolism \
           --output-dir "$NEURODAMUS_NEOCORTEX_ROOT" \
           --with-internal-mods \
           --incflags "-isystem $SONATAREPORT_DIR/include" \
