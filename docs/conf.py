@@ -33,6 +33,7 @@ release = version
 extensions = [
     "sphinx.ext.napoleon",
     "sphinx.ext.autodoc",
+    "sphinx.ext.doctest",
     "sphinx_mdinclude",
 ]
 
@@ -43,6 +44,29 @@ templates_path = ["_templates"]
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns = ["**/metadata.md", "build/**"]
+suppress_warnings = ["docutils", "image.not_readable", "ref.ref"]
+
+doctest_global_setup = """
+from multiscale_run.config import MsrConfig
+config = MsrConfig._from_dict(
+    {
+        "run": MsrConfig._from_dict({"dt": 0.1, "tstop": 1.0}),
+        "multiscale_run": MsrConfig._from_dict(
+            {
+                "ndts": 1,
+                "connections": [],
+                "with_steps": False,
+                "with_bloodflow": False,
+                "with_metabolism": False,
+            }
+        ),
+    }
+)
+def gen_mesh():
+    pass
+def gen_node_sets():
+    pass
+"""
 
 
 # The name of the Pygments (syntax highlighting) style to use.
@@ -53,14 +77,21 @@ pygments_style = "sphinx"
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = "sphinx-bluebrain-theme"
-
-# Theme options are theme-specific and customize the look and feel of a theme
-# further.  For a list of options available for each theme, see the
-# documentation.
-html_theme_options = {"metadata_distribution": "multiscale_run"}
+html_theme = "obi_sphinx_theme"
+html_theme_options = {
+    "icon_links": [
+        {
+            "name": "GitHub",
+            "url": "https://github.com/openbraininstitute/MultiscaleRun",
+            "icon": "fa-brands fa-github",
+        },
+    ],
+    "navbar_align": "left",
+}
 
 # Output file base name for HTML help builder.
+
+autodoc_mock_imports = ["neurodamus", "mpi4py", "nbconvert"]
 htmlhelp_basename = "python_doc"
 
 autoclass_content = "both"

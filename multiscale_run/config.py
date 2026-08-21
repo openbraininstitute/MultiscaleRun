@@ -592,7 +592,7 @@ class MsrConfig(dict):
 
         Example:
             >>> dt_info_str = config.dt_info()
-            >>> print(dt_info_str)
+            >>> print(dt_info_str)  # doctest: +SKIP
         """
 
         manager_dts = "\n    ".join([f"{i}_dt: {self.manager_dt(i)} ms" for i in ["neurodamus", "metabolism", "bloodflow", "steps"] if self.manager_dt(i)])
