@@ -11,7 +11,7 @@ env:
   HOC_LIBRARY_PATH: ${{ github.workspace }}/neurodamus-models/build/install/share/neurodamus_neocortex/hoc
   LIBSONATA_ZERO_BASED_GIDS: 1
   HDF5_MPI: ON
-  NRNMECH_LIB_PATH: ${{ github.workspace }}/neurodamus-models/build/install/lib/libnrnmech.so
+  NRNMECH_LIB_PATH: ${{ github.workspace }}/neurodamus-models/build/install/x86_64/libnrnmech.so
   HDF5_INCLUDEDIR: /usr/include/hdf5/openmpi
   HDF5_LIBDIR: /usr/lib/x86_64-linux-gnu/hdf5/openmpi
   CC: mpicc
@@ -109,6 +109,11 @@ jobs:
       run: |
         pip install   neurodamus
 
+    - name: Configure Neurodamus HOC path
+      run: |
+        DATADIR=$(python -c "import neurodamus; from pathlib import Path; print(Path(neurodamus.__file__).parent / 'data')")
+        echo "HOC_LIBRARY_PATH=$DATADIR/hoc" >> "$GITHUB_ENV"
+
     - name: Cache neurodamus-models
       id: cache-neurodamus-models
       uses: actions/cache@v4
@@ -121,23 +126,18 @@ jobs:
       run: |
         git clone https://github.com/openbraininstitute/neurodamus-models.git
 
+        MOD_ENV=$(neurodamus-compile-mods \
+          --input-dir neurodamus-models/mod \
+          --output-dir "$NEURODAMUS_NEOCORTEX_ROOT" \
+          --with-internal-mods \
+          --incflags "-isystem $SONATAREPORT_DIR/include" \
+          --loadflags "-Wl,-rpath,$SONATAREPORT_DIR/lib $SONATAREPORT_DIR/lib/libsonatareport.so" \
+          --output-type shell \
+          --simulator=neuron)
+        echo "$MOD_ENV" >> "$GITHUB_ENV"
+
         DATADIR=$(python -c "import neurodamus; from pathlib import Path; print(Path(neurodamus.__file__).parent / 'data')")
-
-        cmake -B neurodamus-models/build -S neurodamus-models/ \
-          -DPython_EXECUTABLE=$(which python) \
-          -DCMAKE_INSTALL_PREFIX=$NEURODAMUS_NEOCORTEX_ROOT \
-          -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=ON \
-          -DNEURODAMUS_CORE_DIR=${DATADIR} \
-          -DCMAKE_PREFIX_PATH=$SONATAREPORT_DIR \
-          -DNEURODAMUS_MECHANISMS=neocortex \
-          -DNEURODAMUS_ENABLE_CORENEURON=OFF \
-          -DNEURODAMUS_NCX_V5=ON \
-          -DNEURODAMUS_NCX_METABOLISM=ON \
-          -DNEURODAMUS_NCX_NGV=ON \
-          -GNinja
-
-        cmake --build neurodamus-models/build
-        cmake --install neurodamus-models/build
+        echo "HOC_LIBRARY_PATH=$DATADIR/hoc" >> "$GITHUB_ENV"
 
     - name: Install Multiscale Run
       run: |
