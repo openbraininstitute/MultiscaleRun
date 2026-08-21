@@ -892,6 +892,23 @@ def log_stats(
         )
 
 
+class _SimpleEvalModuleProxy:
+    """Expose public module attributes without passing the module to simpleeval."""
+
+    def __init__(self, module):
+        self._module = module
+
+    def __getattr__(self, name):
+        if name.startswith("_"):
+            raise AttributeError(name)
+        return getattr(self._module, name)
+
+
+def _wrap_simpleeval_module(module):
+    """Expose a module to simpleeval without allowing private attributes."""
+    return _SimpleEvalModuleProxy(module)
+
+
 class PyExprEval:
     """Parse and evaluate Python expressions in a controlled environment"""
 
@@ -910,8 +927,8 @@ class PyExprEval:
         # list of variables and modules available in the scope
         names = dict(
             config=config,
-            math=math,
-            np=np,
+            math=_wrap_simpleeval_module(math),
+            np=_wrap_simpleeval_module(np),
         )
         # list of builtins available in the scope
         functions = dict(
