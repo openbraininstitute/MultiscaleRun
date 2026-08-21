@@ -119,7 +119,7 @@ jobs:
       uses: actions/cache@v4
       with:
         path: ${{ env.NEURODAMUS_NEOCORTEX_ROOT }}
-        key: ${{ runner.os }}-neurodamus-models-${{ steps.venv_and_hashes.outputs.neurodamus_models_hash }}
+        key: ${{ runner.os }}-neurodamus-models-${{ steps.venv_and_hashes.outputs.neurodamus_models_hash }}-metabolism-ngv
 
     - name: Install neurodamus-models
       if: steps.cache-neurodamus-models.outputs.cache-hit != 'true'
@@ -128,6 +128,7 @@ jobs:
 
         MOD_ENV=$(neurodamus-compile-mods \
           --input-dir neurodamus-models/neocortex/mod/metabolism \
+          neurodamus-models/common/mod/ngv \
           --output-dir "$NEURODAMUS_NEOCORTEX_ROOT" \
           --with-internal-mods \
           --incflags "-isystem $SONATAREPORT_DIR/include" \
