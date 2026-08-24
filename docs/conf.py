@@ -78,16 +78,6 @@ pygments_style = "sphinx"
 # a list of builtin themes.
 #
 html_theme = "obi_sphinx_theme"
-html_theme_options = {
-    "icon_links": [
-        {
-            "name": "GitHub",
-            "url": "https://github.com/openbraininstitute/MultiscaleRun",
-            "icon": "fa-brands fa-github",
-        },
-    ],
-    "navbar_align": "left",
-}
 
 # Output file base name for HTML help builder.
 
